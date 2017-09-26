@@ -10,4 +10,4 @@ The root user can furthermore create a backup of the /etc directory.
 
 backupuser is released unser a BSD Style license.
 
-backupusere is Copyright (c) 2015-2017 Oliver Mahmoudi
+backupuser is Copyright (c) 2015-2017 Oliver Mahmoudi
