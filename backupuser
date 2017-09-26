@@ -1,0 +1,440 @@
+#!/bin/sh
+
+# Copyright (c) 2015-2017 Oliver Mahmoudi
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted providing that the following conditions 
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+### backupuser - a user backup utility
+
+# Functions:
+# make_package_list
+# create_backup
+# backup_etc
+# do_hook
+# restart
+# strip_trailing_slash
+# scp_get_args
+# scp_get_destination
+# copy_backup_scp
+# usage
+
+# Variables:
+WHO=`whoami`		# == WHO=$(whoami)
+DATE=$(date +%m.%d.%Y)
+YEAR=$(date +%Y)	# This year
+TIME=$(date +%H-%M-%S)
+FILENAME=${WHO}_${DATE}_${TIME}.tar.gz
+ETC_NAME=etc_${DATE}_${TIME}.tar.gz
+BACKUP_BASE=${HOME}/backups
+BACKUP_DIR=${BACKUP_BASE}/${YEAR}
+BACKUP_DIR_ETC=${BACKUP_BASE}/etc/${YEAR}
+BU_CONTENTS=		# contents of ${HOME}/.bu
+OS_TYPE=$(uname)
+SCP_DEST=
+p_flag=0			# create installed packages list flag
+s_flag=0			# scp flag
+
+#
+# Save a list of the installed packages in root's home direcory if desired.
+# Different operating systems use different package managers. 
+# Currently supported are: Linux's yum and FreeBSD's pkg.
+#
+
+make_package_list()
+{
+	if [ "${OS_TYPE}" = "Linux" ] ; then
+		if [ -e "/bin/yum" ] ; then
+			echo -n "Generating the installed packages list..."
+			yum list installed > ~/yum_list_installed.txt
+			echo "done."
+			echo -n "Generating the installed groups list..."
+			yum grouplist > ~/yum_grouplist.txt
+			echo "done."
+			echo -n "Generating the installed repos list..."
+			yum repolist all > ~/yum_repolist_all.txt
+			echo "done."
+		fi
+	elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+		echo -n "Generating the installed packages list..."
+		pkg list > ~/installed_packages.txt
+		echo "done."
+	else
+		echo "Unknown package manager."
+	fi
+}
+
+#
+# Backup the user's home directoy. This is the main function.
+#
+
+create_backup()
+{
+	echo "Getting ready to backup ${WHO}'s home directory:"
+	echo
+
+	if [ "${WHO}" = "root" -a $p_flag -eq 1 ] ; then
+		make_package_list
+	fi
+
+	if [ ! -d ${BACKUP_DIR} ] ; then
+		echo -n "Your backup directory: ${BACKUP_DIR} doesn't seem to exist. Creating it..."
+		mkdir -p ${BACKUP_DIR}
+		echo done.
+	fi
+
+	# Call the do_hook function which checks for any extra files to process in 
+	# ${HOME}/.bu
+	do_hook
+
+	# Move to the temporary backup directory /tmp
+	echo -n "Moving to temporary backup folder /tmp..."
+	cd /tmp > /dev/null 2>&1
+	echo "done."
+
+	# Create the backup
+	if [ -e "${HOME}/tarexcludes.txt" ] ; then
+		echo "The following files and folders will not be backed up:"
+		cat ${HOME}/tarexcludes.txt
+		echo
+		echo -n "Creating backup in /tmp..."
+		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} -X ${HOME}/tarexcludes.txt ${HOME} > /dev/null 2>&1
+		echo "done."
+	else
+		echo -n "Creating backup in /tmp..."
+		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} ${HOME} > /dev/null 2>&1
+		echo "done."
+	fi
+
+	# Move the backup to the directory it is destined for
+	echo -n "Moving backup from /tmp to ${BACKUP_DIR}..."
+# debugging
+	cp -i ${FILENAME} ${BACKUP_DIR} > /dev/null 2>&1
+# debugging
+#	mv ${FILENAME} ${BACKUP_DIR} > /dev/null 2>&1
+
+	echo done.
+	cd ${BACKUP_DIR} > /dev/null 2>&1
+
+	# Test the backup
+	echo -n "Testing the backup..."
+	gzip --test ${FILENAME} > /dev/null 2>&1
+
+	if [ $? -eq 0 ] ; then
+		echo "OK"'!'
+	else
+		echo "File: ${FILENAME} is corrupted."
+		rm -v ${FILENAME}
+		exit 1
+	fi
+
+	# Checksums
+	echo -n "Generating checksum in ${BACKUP_DIR}/${WHO}_report.txt..."
+
+	if [ "${OS_TYPE}" = "Linux" ] ; then
+		sha256sum ${FILENAME} >> ${WHO}_report.txt	# Linux uses the sha256sum command
+	elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+		sha256 ${FILENAME} >> ${WHO}_report.txt		# FreeBSD uses sha256
+	fi
+	echo "done."
+
+	# Print out a status report.
+	echo 'Backup successful!'
+	echo "Your backup file is: ${BACKUP_DIR}/${FILENAME}"
+}
+
+#
+# Make a backup of the /etc directory.
+#
+
+backup_etc()
+{
+	if [ "${WHO}" = "root" ] ; then
+
+		echo "Getting ready to backup the /etc directory:"
+		echo
+
+		if [ ! -d ${BACKUP_DIR_ETC} ] ; then
+			echo -n "Backup directory: /usr/local/backups/etc/${YEAR} doesn't seem to exist. Creating it..."
+			mkdir -p ${BACKUP_DIR_ETC}
+			echo "done."
+		fi
+
+		# Move to the temporary backup directory /tmp
+		echo -n "Moving to temporary backup folder /tmp..."
+		cd /tmp > /dev/null 2>&1
+		echo "done."
+
+		echo -n "Creating the backup..."
+		tar -czf ${ETC_NAME} /etc > /dev/null 2>&1
+		echo "done."
+
+		# Move the backup to the directory it is destined for
+		echo -n "Moving backup from /tmp to ${BACKUP_DIR}..."
+		mv ${ETC_NAME} ${BACKUP_DIR_ETC} > /dev/null 2>&1
+		echo done.
+		cd ${BACKUP_DIR_ETC} > /dev/null 2>&1
+
+		# test the backup
+		echo -n "Testing the backup..."
+		gzip -t ${ETC_NAME} > /dev/null 2>&1
+
+		if [ $? -eq 0 ] ; then
+			echo 'OK!'
+		else
+			echo "File: ${ETC_NAME} is corrupted."
+			rm -v ${ETC_NAME}
+			exit 1
+		fi
+		
+		# Checksums
+		echo -n "Generating checksums in ${BACKUP_DIR_ETC}/etc_report.txt..."
+		sha256sum ${ETC_NAME} >> etc_report.txt
+		echo "done."
+
+		# Print out a status report.
+		echo 'Backup successful!'
+		echo "/etc backup file is: ${BACKUP_DIR_ETC}/${ETC_NAME}"
+	else
+		echo 'You are not the root user. You need to be root to backup the /etc directory!'
+		exit 1
+	fi ### root ###
+}
+
+#
+# The modular hook function begings here. Check whether there are any files in the
+# $HOME/.bu folder. If so, then source them.
+#
+
+do_hook()
+{
+if [ -d ${HOME}/.bu ] ; then
+	cd $HOME/.bu
+	BU_CONTENTS=*
+	if [ -n "$BU_CONTENTS" ] ; then
+		echo "Sourcing files from folder $HOME/.bu:"
+		for i in $BU_CONTENTS
+		do
+			echo "Sourcing $HOME/.bu/$i"
+			source ./$i
+			echo
+		done
+		echo "Done sourcing $HOME/.bu."
+	fi
+fi
+}
+
+#
+# Clean the users backup directory.
+#
+
+restart()
+{
+	local choice
+
+	# Confirm
+	echo "This will delete the entire contents of you backupfolder: ${BACKUP_BASE}"
+	echo -n "Are you sure? [yes or no]: "
+	read -t 30 choice		# We got 30 seconds to make a choice
+
+	case $choice in
+
+	[Yy][Ee][Ss] | [Yy] )			# remove old files : >
+		rm -fvr ${BACKUP_BASE}/*
+		;;
+	[Nn][Oo] | [Nn] )
+		echo 'Aborted!'
+		exit 1
+		;;
+	*)
+		echo "No input received. Terminating."
+		exit 1
+		;;
+	esac
+}
+
+#
+# Strip a trailing slash from given pathnames, i.e.
+# /path/to/file/ becomes /path/to/file
+#
+
+strip_trailing_slash()
+{
+	local _length _strlen _last_char
+
+	_length=$(awk -v value=$1 'BEGIN {
+		n = length(value);
+		print n;
+	}')
+
+	_last_char=${1:$_strlen-1:1}
+
+	if [ "$_last_char" = "/" ] ; then
+		echo ${1:0:$_strlen-1}
+	else
+		echo $1
+	fi
+}
+
+#
+# Copy the backup to another local device.
+#
+
+copy_backup_local()
+{
+	local _i
+
+	_i=$1
+
+	if [ -d $_i ] ; then
+		if [ -w $_i ] ; then
+			_i=$(strip_trailing_slash $_i)
+			echo -n "Copying backup to: $_i..."
+			cp -i ${BACKUP_DIR}/${FILENAME} $_i
+			echo "done."
+		else
+			echo "$_i is not writable."
+		fi
+	else
+		echo "$_i is not a directory."
+	fi
+}
+
+#
+# Get the destination for scp. Passed via -s.
+#
+
+scp_get_destination_path()
+{
+	local _dest
+
+	_dest=$(awk -v value="$1" 'BEGIN {
+		n=split(value, a);
+		print a[n];
+	}')
+
+	echo $_dest
+}
+
+#
+# Get the arguments (if any) for scp. Passed via -s.
+#
+
+scp_get_arguments()
+{
+	local _args
+
+	_args=$(awk -v value="$1" 'BEGIN {
+		args=""
+		n=split(value, a);
+		for(i = 1; i < n; i++)
+			args=args" "a[i];
+
+		print args;
+	}')
+
+	echo $_args
+}
+
+#
+# Copy the backup via scp
+#
+
+copy_backup_scp()
+{
+	local _scp_args _scp_path
+
+	echo "Copying backup via scp:"
+
+	_scp_args=$(scp_get_arguments "$1")
+	_scp_path=$(scp_get_destination_path "$1")
+
+	if [ ! -z "$_scp_args" ] ; then
+		scp $_scp_args ${BACKUP_DIR}/${FILENAME} $_scp_path
+	else
+		scp ${BACKUP_DIR}/${FILENAME} $_scp_path
+	fi
+}
+
+#
+# usage function
+#
+
+usage()
+{
+	echo "usage: backupuser [[-p] [-s remote server] [-v] local disks...]"
+	exit 1
+}
+
+############################################################
+##### entry point
+
+while getopts ":ps:" opt ; do
+        case $opt in
+                p)
+                        p_flag=1		# create installed packages list flag
+                        ;;
+                s)
+                        s_flag=1		# scp flag
+						SCP_DEST=$OPTARG
+                        ;;
+                \?)
+                        echo "unkown flag: -$OPTARG."
+                        usage
+                        exit
+                        ;;
+				:)
+						echo "The -$OPTARG flag needs an argument"
+                        usage
+						exit
+						;;
+        esac
+done
+
+shift $((OPTIND-1))
+
+if [ "$1" = "restart" ] ; then
+	restart
+	echo 'Done!'
+	exit 0
+fi
+
+if [ "$1" = "etc" ] ; then
+	backup_etc
+	echo 'Done!'
+	exit 0
+fi
+
+create_backup
+
+if [ $s_flag -eq 1 ] ; then
+	copy_backup_scp "$SCP_DEST"
+fi
+
+for i in $*
+do
+	copy_backup_local $i
+done
+
+# done
+echo 'Done!'
+exit 0
