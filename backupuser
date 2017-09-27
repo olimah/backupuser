@@ -53,6 +53,7 @@ OS_TYPE=$(uname)
 SCP_DEST=
 p_flag=0			# create installed packages list flag
 s_flag=0			# scp flag
+v_flag=0			# verbose flag
 
 #
 # Save a list of the installed packages in root's home direcory if desired.
@@ -64,20 +65,32 @@ make_package_list()
 {
 	if [ "${OS_TYPE}" = "Linux" ] ; then
 		if [ -e "/bin/yum" ] ; then
-			echo -n "Generating the installed packages list..."
+			if [ $v_flag -eq 1 ] ; then
+				echo -n "Generating the installed packages list..."
+			fi
 			yum list installed > ~/yum_list_installed.txt
-			echo "done."
-			echo -n "Generating the installed groups list..."
+			if [ $v_flag -eq 1 ] ; then
+				echo "done."
+				echo -n "Generating the installed groups list..."
+			fi
 			yum grouplist > ~/yum_grouplist.txt
-			echo "done."
-			echo -n "Generating the installed repos list..."
+			if [ $v_flag -eq 1 ] ; then
+				echo "done."
+				echo -n "Generating the installed repos list..."
+			fi
 			yum repolist all > ~/yum_repolist_all.txt
-			echo "done."
+			if [ $v_flag -eq 1 ] ; then
+				echo "done."
+			fi
 		fi
 	elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-		echo -n "Generating the installed packages list..."
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Generating the installed packages list..."
+		fi
 		pkg list > ~/installed_packages.txt
-		echo "done."
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+		fi
 	else
 		echo "Unknown package manager."
 	fi
@@ -89,17 +102,23 @@ make_package_list()
 
 create_backup()
 {
-	echo "Getting ready to backup ${WHO}'s home directory:"
-	echo
+	if [ $v_flag -eq 1 ] ; then
+		echo "Getting ready to backup ${WHO}'s home directory:"
+		echo
+	fi
 
 	if [ "${WHO}" = "root" -a $p_flag -eq 1 ] ; then
 		make_package_list
 	fi
 
 	if [ ! -d ${BACKUP_DIR} ] ; then
-		echo -n "Your backup directory: ${BACKUP_DIR} doesn't seem to exist. Creating it..."
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Your backup directory: ${BACKUP_DIR} doesn't seem to exist. Creating it..."
+		fi
 		mkdir -p ${BACKUP_DIR}
-		echo done.
+		if [ $v_flag -eq 1 ] ; then
+			echo done.
+		fi
 	fi
 
 	# Call the do_hook function which checks for any extra files to process in 
@@ -107,40 +126,56 @@ create_backup()
 	do_hook
 
 	# Move to the temporary backup directory /tmp
-	echo -n "Moving to temporary backup folder /tmp..."
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Moving to temporary backup folder /tmp..."
+	fi
 	cd /tmp > /dev/null 2>&1
-	echo "done."
-
-	# Create the backup
-	if [ -e "${HOME}/tarexcludes.txt" ] ; then
-		echo "The following files and folders will not be backed up:"
-		cat ${HOME}/tarexcludes.txt
-		echo
-		echo -n "Creating backup in /tmp..."
-		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} -X ${HOME}/tarexcludes.txt ${HOME} > /dev/null 2>&1
-		echo "done."
-	else
-		echo -n "Creating backup in /tmp..."
-		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} ${HOME} > /dev/null 2>&1
+	if [ $v_flag -eq 1 ] ; then
 		echo "done."
 	fi
 
-	# Move the backup to the directory it is destined for
-	echo -n "Moving backup from /tmp to ${BACKUP_DIR}..."
-# debugging
-	cp -i ${FILENAME} ${BACKUP_DIR} > /dev/null 2>&1
-# debugging
-#	mv ${FILENAME} ${BACKUP_DIR} > /dev/null 2>&1
+	# Create the backup
+	if [ -e "${HOME}/bu_excludes.txt" ] ; then
+		if [ $v_flag -eq 1 ] ; then
+			echo "The following files and folders will not be backed up:"
+			cat ${HOME}/bu_excludes.txt
+			echo
+			echo -n "Creating backup in /tmp..."
+		fi
+		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} -X ${HOME}/bu_excludes.txt ${HOME} > /dev/null 2>&1
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+		fi
+	else
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Creating backup in /tmp..."
+		fi
+		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} ${HOME} > /dev/null 2>&1
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+		fi
+	fi
 
-	echo done.
+	# Move the backup to the directory it is destined for
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Moving backup from /tmp to ${BACKUP_DIR}..."
+	fi
+	mv ${FILENAME} ${BACKUP_DIR} > /dev/null 2>&1
+	if [ $v_flag -eq 1 ] ; then
+		echo done.
+	fi
 	cd ${BACKUP_DIR} > /dev/null 2>&1
 
 	# Test the backup
-	echo -n "Testing the backup..."
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Testing the backup..."
+	fi
 	gzip --test ${FILENAME} > /dev/null 2>&1
 
 	if [ $? -eq 0 ] ; then
-		echo "OK"'!'
+		if [ $v_flag -eq 1 ] ; then
+			echo "OK"'!'
+		fi
 	else
 		echo "File: ${FILENAME} is corrupted."
 		rm -v ${FILENAME}
@@ -148,14 +183,19 @@ create_backup()
 	fi
 
 	# Checksums
-	echo -n "Generating checksum in ${BACKUP_DIR}/${WHO}_report.txt..."
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Generating checksum in ${BACKUP_DIR}/${WHO}_report.txt..."
+	fi
 
 	if [ "${OS_TYPE}" = "Linux" ] ; then
 		sha256sum ${FILENAME} >> ${WHO}_report.txt	# Linux uses the sha256sum command
 	elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
 		sha256 ${FILENAME} >> ${WHO}_report.txt		# FreeBSD uses sha256
 	fi
-	echo "done."
+
+	if [ $v_flag -eq 1 ] ; then
+		echo "done."
+	fi
 
 	# Print out a status report.
 	echo 'Backup successful!'
@@ -169,37 +209,58 @@ create_backup()
 backup_etc()
 {
 	if [ "${WHO}" = "root" ] ; then
-
-		echo "Getting ready to backup the /etc directory:"
-		echo
+		if [ $v_flag -eq 1 ] ; then
+			echo "Getting ready to backup the /etc directory:"
+			echo
+		fi
 
 		if [ ! -d ${BACKUP_DIR_ETC} ] ; then
-			echo -n "Backup directory: /usr/local/backups/etc/${YEAR} doesn't seem to exist. Creating it..."
+			if [ $v_flag -eq 1 ] ; then
+				echo -n "Backup directory: ${BACKUP_DIR_ETC} doesn't seem to exist. Creating it..."
+			fi
 			mkdir -p ${BACKUP_DIR_ETC}
-			echo "done."
+			if [ $v_flag -eq 1 ] ; then
+				echo "done."
+			fi
 		fi
 
 		# Move to the temporary backup directory /tmp
-		echo -n "Moving to temporary backup folder /tmp..."
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Moving to temporary backup folder /tmp..."
+		fi
 		cd /tmp > /dev/null 2>&1
-		echo "done."
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+		fi
 
-		echo -n "Creating the backup..."
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Creating the backup..."
+		fi
 		tar -czf ${ETC_NAME} /etc > /dev/null 2>&1
-		echo "done."
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+		fi
 
 		# Move the backup to the directory it is destined for
-		echo -n "Moving backup from /tmp to ${BACKUP_DIR}..."
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Moving backup from /tmp to ${BACKUP_DIR}..."
+		fi
 		mv ${ETC_NAME} ${BACKUP_DIR_ETC} > /dev/null 2>&1
-		echo done.
+		if [ $v_flag -eq 1 ] ; then
+			echo done.
+		fi
 		cd ${BACKUP_DIR_ETC} > /dev/null 2>&1
 
 		# test the backup
-		echo -n "Testing the backup..."
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Testing the backup..."
+		fi
 		gzip -t ${ETC_NAME} > /dev/null 2>&1
 
 		if [ $? -eq 0 ] ; then
-			echo 'OK!'
+			if [ $v_flag -eq 1 ] ; then
+				echo 'OK!'
+			fi
 		else
 			echo "File: ${ETC_NAME} is corrupted."
 			rm -v ${ETC_NAME}
@@ -207,9 +268,19 @@ backup_etc()
 		fi
 		
 		# Checksums
-		echo -n "Generating checksums in ${BACKUP_DIR_ETC}/etc_report.txt..."
-		sha256sum ${ETC_NAME} >> etc_report.txt
-		echo "done."
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Generating checksums in ${BACKUP_DIR_ETC}/etc_report.txt..."
+		fi
+
+        if [ "${OS_TYPE}" = "Linux" ] ; then
+			sha256sum ${ETC_NAME} >> etc_report.txt		# Linux uses sha256sum
+        elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+			sha256 ${ETC_NAME} >> etc_report.txt		# FreeBSD uses sha256
+        fi
+
+        if [ $v_flag -eq 1 ] ; then
+                echo "done."
+        fi
 
 		# Print out a status report.
 		echo 'Backup successful!'
@@ -231,14 +302,22 @@ if [ -d ${HOME}/.bu ] ; then
 	cd $HOME/.bu
 	BU_CONTENTS=*
 	if [ -n "$BU_CONTENTS" ] ; then
-		echo "Sourcing files from folder $HOME/.bu:"
+		if [ $v_flag -eq 1 ] ; then
+			echo "Sourcing files from folder $HOME/.bu:"
+		fi
 		for i in $BU_CONTENTS
 		do
-			echo "Sourcing $HOME/.bu/$i"
+			if [ $v_flag -eq 1 ] ; then
+				echo "Sourcing $HOME/.bu/$i"
+			fi
 			source ./$i
-			echo
+			if [ $v_flag -eq 1 ] ; then
+				echo
+			fi
 		done
-		echo "Done sourcing $HOME/.bu."
+		if [ $v_flag -eq 1 ] ; then
+			echo "Done sourcing $HOME/.bu."
+		fi
 	fi
 fi
 }
@@ -308,9 +387,13 @@ copy_backup_local()
 	if [ -d $_i ] ; then
 		if [ -w $_i ] ; then
 			_i=$(strip_trailing_slash $_i)
-			echo -n "Copying backup to: $_i..."
+			if [ $v_flag -eq 1 ] ; then
+				echo -n "Copying backup to: $_i..."
+			fi
 			cp -i ${BACKUP_DIR}/${FILENAME} $_i
-			echo "done."
+			if [ $v_flag -eq 1 ] ; then
+				echo "done."
+			fi
 		else
 			echo "$_i is not writable."
 		fi
@@ -361,17 +444,21 @@ scp_get_arguments()
 
 copy_backup_scp()
 {
-	local _scp_args _scp_path
+	local _scp_args _scp_path _file
 
-	echo "Copying backup via scp:"
+	_file=$2
+
+	if [ $v_flag -eq 1 ] ; then
+		echo "Copying backup via scp:"
+	fi
 
 	_scp_args=$(scp_get_arguments "$1")
 	_scp_path=$(scp_get_destination_path "$1")
 
 	if [ ! -z "$_scp_args" ] ; then
-		scp $_scp_args ${BACKUP_DIR}/${FILENAME} $_scp_path
+		scp $_scp_args $_file $_scp_path
 	else
-		scp ${BACKUP_DIR}/${FILENAME} $_scp_path
+		scp $_file $_scp_path
 	fi
 }
 
@@ -381,15 +468,21 @@ copy_backup_scp()
 
 usage()
 {
-	echo "usage: backupuser [[-p] [-s remote server] [-v] local disks...]"
-	exit 1
+	echo "usage: backupuser [-hpv] [-s remote_server] local_disk ..."
 }
 
 ############################################################
 ##### entry point
 
-while getopts ":ps:" opt ; do
+while getopts ":vhps:" opt ; do
         case $opt in
+                h)
+                        usage
+						exit 0
+                        ;;
+                v)
+                        v_flag=1		# be more verbose
+                        ;;
                 p)
                         p_flag=1		# create installed packages list flag
                         ;;
@@ -400,12 +493,12 @@ while getopts ":ps:" opt ; do
                 \?)
                         echo "unkown flag: -$OPTARG."
                         usage
-                        exit
+                        exit 1
                         ;;
 				:)
 						echo "The -$OPTARG flag needs an argument"
                         usage
-						exit
+						exit 1
 						;;
         esac
 done
@@ -420,6 +513,9 @@ fi
 
 if [ "$1" = "etc" ] ; then
 	backup_etc
+	if [ $s_flag -eq 1 ] ; then
+		copy_backup_scp "$SCP_DEST" ${BACKUP_DIR_ETC}/${ETC_NAME}
+	fi
 	echo 'Done!'
 	exit 0
 fi
@@ -427,7 +523,7 @@ fi
 create_backup
 
 if [ $s_flag -eq 1 ] ; then
-	copy_backup_scp "$SCP_DEST"
+	copy_backup_scp "$SCP_DEST" ${BACKUP_DIR}/${FILENAME}
 fi
 
 for i in $*
