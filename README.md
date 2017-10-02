@@ -6,8 +6,11 @@ Backups are stored in ~/backups and its subfolders ordered by year.
 Next to creating the backup itself, backup files can be copied to localy attached external storage devices such
 as USB drives, or copied to other servers via scp.
 
-The root user can furthermore create a backup of the /etc directory.
+The root user can prior to creating his backup generate a list of installed packages. He can furthermore create
+a backup of the /etc directory.
 
-backupuser is released unser a BSD Style license.
+See the manpage for a detailed description of options and further capabilities.
+
+backupuser is released unser a 2 Clause BSD Style license.
 
 backupuser is Copyright (c) 2015-2017 Oliver Mahmoudi
