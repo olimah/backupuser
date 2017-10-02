@@ -1,0 +1,31 @@
+." Manpage for backupuser
+.".RI [ underlined ]
+.TH backupuser 1 "October 2017" "backupuser 1.0" "Manpage for backupuser"
+.SH NAME
+backupuser \- User backup utility
+.SH SYNOPSIS
+.BR "backupuser " "[-p [-s SCP_DESTINATION] -v local_disks ...] || [etc] || [restart]"
+.SH DESCRIPTION
+backupuser is a shell script utility, that allows a user to create a backup of his home directory, which gets placed in a subfolder of ${HOME}/backups. All other arguments passed to backupuser will be treated as external storage devices and it will attempt to copy the backup to the given arguments.
+
+If the special folder ${HOME}/.bu exists, any scripts that may reside in this folder will be parsed and processed prior to backup creation. If the file ${HOME}/buexcludes.txt exists, then any files (or folders) mentioned in this file will not be backed up. Files (or folders) mentioned in buexcludes.txt should be indicated with their full path to be effective.
+
+In case the first non-option argument is restart, then backupuser will clean the users backupdirectory ${HOME}/backups
+
+The following special options exist for root: If the first non-option argument is etc, then
+backupuser will generate a backup of the system's /etc directory. 
+
+.SH OPTIONS
+.TP
+.B -p
+generate a list of installed packages/ports in ${HOME} (root only)
+.TP
+.B -s
+copy the backup via secure shell to SCP_DESTINATION
+.TP
+.B -v
+be more verbose
+.SH BUGS
+Please report when found.
+.SH AUTHOR
+Oliver Mahmoudi (contact@olivermahmoudi.com)
