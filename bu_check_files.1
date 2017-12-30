@@ -6,28 +6,20 @@ bu_check_files \- Verify the file integrity of backupuser(1) backups
 .SH SYNOPSIS
 .BR "bu_check_files " "[etc]"
 .SH DESCRIPTION
-The bu_check_files utility is meant to verfify the integrity of backups created with \fBbackupuser(1)\fR. Copy the script to the location of the backups on the external storage device and run it. This will generate a report file, which can be used to verify the integrity of the backups with the \fBdiff(1)\fR utility.
+The bu_check_files utility is used to verfify the integrity of backups created with \fBbackupuser(1)\fR. The script is meant to be copied the location of the backups on the external storage device. When run, it will generate the report file ${USER}_report.txt, which can be used to verify the integrity of the backups with the \fBdiff(1)\fR utility on the original medium of creation.
+
+Upon invocation, when passing "etc" as an argument, then bu_check_files generates a report file for backups made of the /etc directory.
 .SH EXAMPLES
 .PP
-1. Verfiy the intergrity of our backups:
+Verfiy the intergrity of our 2017 backups:
 .PP
 cp /usr/local/bin/bu_check_files /path/to/external/storage
 .br
 cd /path/to/external/storage
 .br
-"./bu_check_files"
+/path/to/external/storage/bu_check_files
 .br
-diff user_report.txt ~/backups/
-.PP
-2. :
-.PP
-cp /usr/local/bin/bu_check_files /path/to/external/storage
-.br
-cd /path/to/external/storage
-.br
-"./bu_check_files"
-.br
-diff
+diff /path/to/external/storage/user_report.txt ~/backups/2017/user_report.txt
 .SH BUGS
 Please report when found.
 .SH SEE ALSO
