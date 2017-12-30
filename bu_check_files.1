@@ -1,0 +1,36 @@
+." Manpage for bu_check_files
+.".RI [ underlined ]
+.TH bu_check_files 1 "October 2017" "bu_check_files 1.0" "Manpage for bu_check_files"
+.SH NAME
+bu_check_files \- Verify the file integrity of backupuser(1) backups
+.SH SYNOPSIS
+.BR "bu_check_files " "[etc]"
+.SH DESCRIPTION
+The bu_check_files utility is meant to verfify the integrity of backups created with \fBbackupuser(1)\fR. Copy the script to the location of the backups on the external storage device and run it. This will generate a report file, which can be used to verify the integrity of the backups with the \fBdiff(1)\fR utility.
+.SH EXAMPLES
+.PP
+1. Verfiy the intergrity of our backups:
+.PP
+cp /usr/local/bin/bu_check_files /path/to/external/storage
+.br
+cd /path/to/external/storage
+.br
+"./bu_check_files"
+.br
+diff user_report.txt ~/backups/
+.PP
+2. :
+.PP
+cp /usr/local/bin/bu_check_files /path/to/external/storage
+.br
+cd /path/to/external/storage
+.br
+"./bu_check_files"
+.br
+diff
+.SH BUGS
+Please report when found.
+.SH SEE ALSO
+backupuser(1)
+.SH AUTHOR
+Oliver Mahmoudi (contact@olivermahmoudi.com)
