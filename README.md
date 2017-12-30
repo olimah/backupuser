@@ -1,13 +1,12 @@
 README file for backupuser:
 
-backupuser is a simple but effective user backup utility, that creates a backup of a user's home directory ~/.
-Backups are stored in ~/backups and its subfolders ordered by year.
+backupuser is a simple but effective utility, that is mainly used to create a backups of a user's home directory. The backups themselves are stored in subfolders of ~/backups ordered by year.
 
-Next to creating the backup itself, backup files can be copied to localy attached external storage devices such
-as USB drives, or copied to other servers via scp.
+As part of the backup process, the backup file can be copied to locally attached external storage devices such as USB drives and/or copied to another server via scp.
 
-The root user can prior to creating his backup generate a list of installed packages. He can furthermore create
-a backup of the /etc directory.
+Some special options exists for the root user: He can generate a list of installed packages and can furthermore create backups of the /etc directory.
+
+The SHA256 checksum of each backup is recorded in a report file. This report file can, through the use of another script, be replicated on the external storage devices to verify the integrity of the backups.
 
 See the manpage for a detailed description of options and further capabilities.
 
