@@ -8,7 +8,7 @@ backupuser \- User backup utility
 .SH DESCRIPTION
 backupuser is a shell script utility, that allows a user to create a backup of his home directory, which gets placed in a subfolder of ${HOME}/backups. All other arguments passed to backupuser will be treated as external storage devices and it will attempt to copy the backup to the given arguments.
 
-If the special folder ${HOME}/.bu exists, any scripts that may reside in this folder will be parsed and processed prior to backup creation. If the file ${HOME}/buexcludes.txt exists, then any files (or folders) mentioned in this file will not be backed up. Files (or folders) mentioned in buexcludes.txt should be indicated with their full path to be effective.
+If the special folder ${HOME}/.bu exists, any scripts that may reside in this folder will be parsed and processed prior to backup creation. If the file ${HOME}/bu_excludes.txt exists, then any files (or folders) mentioned in this file will not be backed up. To be excluded, files and folders should be indicated with their full path.
 
 In case the first non-option argument is restart, then backupuser will clean the users backupdirectory ${HOME}/backups
 
@@ -25,7 +25,26 @@ copy the backup via secure shell to SCP_DESTINATION
 .TP
 .B -v
 be more verbose
+.SH EXAMPLES
+.PP
+1. Backup ${HOME} and copy the backups to external storage devices "storage1" and "storage2" respectively:
+.PP
+backupuser -v /path/to/external/storage1 /path/to/external/storage2
+.PP
+2. Backup ${HOME} and copy the backup to the following adress via SSH:
+.PP
+backupuser -v -s ""
+.PP
+3. Clean the users backup directory ~/backups with the restart command:
+.PP
+backupuser restart
+.PP
+4. Create a backup of the /etc directory as the root user:
+.PP
+backupuser etc
 .SH BUGS
 Please report when found.
+.SH SEE ALSO
+bu_check_files(1)
 .SH AUTHOR
 Oliver Mahmoudi (contact@olivermahmoudi.com)
