@@ -1,0 +1,96 @@
+#!/bin/sh
+
+# Copyright (c) 2015-2017 Oliver Mahmoudi
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted providing that the following conditions 
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+# IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# Place this script in the folder to which you copy your backups and run it
+# to:
+# 	a) check the files for errors via gzip --test and 
+# 	b) generate their checksums.
+# 
+# Later, the generated report file can be diffed with the original report file 
+# on the users hard drive.
+
+### variables
+USER=$(whoami)
+REPORT_FILE_USER=${USER}_report.txt
+REPORT_FILE_ETC=etc_report.txt
+OS_TYPE=$(uname)
+
+create_etc_report_file()
+{
+	local _etc_contents
+
+	_etc_contents=etc*.tar.gz
+
+	: > ${REPORT_FILE_ETC}								# create a fresh report file
+
+	for i in ${_etc_contents} ; do
+		gzip --test ${i} > /dev/null 2>&1
+		if [ $? -eq 0 ] ; then							# Checksums
+			if [ "${OS_TYPE}" = "Linux" ] ; then
+				sha256sum ${i} >> ${REPORT_FILE_ETC}	# Linux uses the sha256sum command
+			elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+				sha256 ${i} >> ${REPORT_FILE_ETC}		# FreeBSD uses sha256
+			fi
+		else
+			echo "File: ${i} is corrupted." >> ${REPORT_FILE_ETC}
+		fi
+	done
+}
+
+create_user_report_file()
+{
+	local _contents
+	
+	_contents=*.tar.gz
+
+	: > ${REPORT_FILE_USER}								# create a fresh report file
+
+	for i in ${_contents} ; do
+		gzip --test ${i} > /dev/null 2>&1
+		if [ $? -eq 0 ] ; then							# Checksums
+			if [ "${OS_TYPE}" = "Linux" ] ; then
+				sha256sum ${i} >> ${REPORT_FILE_USER}	# Linux uses the sha256sum command
+			elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+				sha256 ${i} >> ${REPORT_FILE_USER}		# FreeBSD uses sha256
+			fi
+		else
+			echo "File: ${i} is corrupted." >> ${REPORT_FILE_USER}
+		fi
+	done
+}
+
+### entry point
+
+if [ "${1}" = "etc" ] ; then
+	create_etc_report_file
+	echo "Done"'!'
+	exit 0
+fi
+
+create_user_report_file
+echo "Done"'!'
+
+exit 0
