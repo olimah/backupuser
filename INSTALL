@@ -1,0 +1,10 @@
+Installation of backupuser:
+=============================
+To install backupuser simply run "make install" as root.
+Running the install target will copy the files:
+backupuser and bu_check_files to /usr/local/bin and install the manpages
+backupuser.1 and bu_check_files.1 in /usr/local/man/man1
+
+Deinstalling backupuser:
+=============================
+To deinstall backupuser run "make deinstall" as root.
