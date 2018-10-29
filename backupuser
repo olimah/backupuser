@@ -51,6 +51,7 @@ BACKUP_DIR_ETC=${BACKUP_BASE}/etc/${YEAR}
 BU_CONTENTS=		# contents of ${HOME}/.bu
 OS_TYPE=$(uname)
 SCP_DEST=
+h_flag=0			# create backup in ${HOME} flag
 p_flag=0			# create installed packages list flag
 s_flag=0			# scp flag
 v_flag=0			# verbose flag
@@ -125,11 +126,19 @@ create_backup()
 	# ${HOME}/.bu
 	do_hook
 
-	# Move to the temporary backup directory /tmp
-	if [ $v_flag -eq 1 ] ; then
+	# Move to the temporary backup directory /tmp or else ${BACKUP_DIR} if h_flag is set
+	if [ $v_flag -eq 1 -a $h_flag -eq 0 ] ; then
 		echo -n "Moving to temporary backup folder /tmp..."
+	elif [ $v_flag -eq 1 -a $h_flag -eq 1 ] ; then
+		echo -n "Moving to backup folder ${BACKUP_DIR}..."
 	fi
-	cd /tmp > /dev/null 2>&1
+
+	if [ $h_flag -eq 0 ] ; then
+		cd /tmp > /dev/null 2>&1
+	else
+		cd ${BACKUP_DIR} > /dev/null 2>&1
+	fi
+
 	if [ $v_flag -eq 1 ] ; then
 		echo "done."
 	fi
@@ -140,15 +149,21 @@ create_backup()
 			echo "The following files and folders will not be backed up:"
 			cat ${HOME}/bu_excludes.txt
 			echo
-			echo -n "Creating backup in /tmp..."
+			if [ $h_flag -eq 0 ] ; then
+				echo -n "Creating backup in /tmp..."
+			else
+				echo -n "Creating backup in ${BACKUP_DIR}..."
+			fi
 		fi
 		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} -X ${HOME}/bu_excludes.txt ${HOME} > /dev/null 2>&1
 		if [ $v_flag -eq 1 ] ; then
 			echo "done."
 		fi
 	else
-		if [ $v_flag -eq 1 ] ; then
+		if [ $v_flag -eq 1 -a $h_flag -eq 0 ] ; then
 			echo -n "Creating backup in /tmp..."
+		elif [ $v_flag -eq 1 -a $h_flag -eq 1 ] ; then
+			echo -n "Creating backup in ${BACKUP_DIR}..."
 		fi
 		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} ${HOME} > /dev/null 2>&1
 		if [ $v_flag -eq 1 ] ; then
@@ -156,15 +171,25 @@ create_backup()
 		fi
 	fi
 
-	# Move the backup to the directory it is destined for
-	if [ $v_flag -eq 1 ] ; then
+	# If $h_flag == 0, move the backup to the directory it is destined for, ${BACKUP_DIR}
+	# When being verbose, we here only need to report "echo done" to the user, when
+	# we are compiling the archive in /tmp.
+	if [ $v_flag -eq 1 -a $h_flag -eq 0 ] ; then
 		echo -n "Moving backup from /tmp to ${BACKUP_DIR}..."
 	fi
-	mv ${FILENAME} ${BACKUP_DIR} > /dev/null 2>&1
-	if [ $v_flag -eq 1 ] ; then
+
+	if [ $h_flag -eq 0 ] ; then
+		mv ${FILENAME} ${BACKUP_DIR} > /dev/null 2>&1
+	fi
+
+	if [ $v_flag -eq 1 -a $h_flag -eq 0 ] ; then
 		echo done.
 	fi
-	cd ${BACKUP_DIR} > /dev/null 2>&1
+
+	# In case $h_flag == 1, we are already there, so therefore...
+	if [ $h_flag -eq 0 ] ; then
+		cd ${BACKUP_DIR} > /dev/null 2>&1
+	fi
 
 	# Test the backup
 	if [ $v_flag -eq 1 ] ; then
@@ -224,7 +249,8 @@ backup_etc()
 			fi
 		fi
 
-		# Move to the temporary backup directory /tmp
+		# Move to the temporary backup directory /tmp. Only root can initiate a backup of
+		# /etc so /tmp is always available.
 		if [ $v_flag -eq 1 ] ; then
 			echo -n "Moving to temporary backup folder /tmp..."
 		fi
@@ -468,17 +494,16 @@ copy_backup_scp()
 
 usage()
 {
-	echo "usage: backupuser [-hpv] [-s remote_server] local_disk ..."
+	echo "usage: backupuser [-hpuv] [-s remote_server] local_disk_1 local_disk_2 ..."
 }
 
 ############################################################
 ##### entry point
 
-while getopts ":vhps:" opt ; do
+while getopts ":vhups:" opt ; do
         case $opt in
                 h)
-                        usage
-						exit 0
+                        h_flag=1		# create archive in ${BACKUP_DIR}
                         ;;
                 v)
                         v_flag=1		# be more verbose
@@ -489,6 +514,10 @@ while getopts ":vhps:" opt ; do
                 s)
                         s_flag=1		# scp flag
 						SCP_DEST=$OPTARG
+                        ;;
+                u)
+                        usage
+						exit 0
                         ;;
                 \?)
                         echo "unkown flag: -$OPTARG."
