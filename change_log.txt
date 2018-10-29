@@ -1,0 +1,5 @@
+# Change log for backupuser
+
+10.15.2018: 
+Added new flag (h_flag) to create the archive in ${BACKUP_DIR} instead of /tmp.
+Added new flag (u_flag) to invoke 'backupuser' usage.
