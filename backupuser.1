@@ -4,7 +4,7 @@
 .SH NAME
 backupuser \- User backup utility
 .SH SYNOPSIS
-.BR "backupuser " "[-p [-s SCP_DESTINATION] -v local_disks ...] || [etc] || [restart]"
+.BR "backupuser " "[-h -p [-s SCP_DESTINATION] -u -v local_disks ...] || [etc] || [restart]"
 .SH DESCRIPTION
 backupuser is a shell script utility, that allows a user to create backups of his home directory. These backups are placed in ${HOME}/backups. When invoking, all other non-option arguments passed to backupuser will be treated as external storage devices and the script will attempt to copy the backup to the given arguments.
 
@@ -14,11 +14,17 @@ When copying the backup to external storage, backupuser has an accompanying util
 
 .SH OPTIONS
 .TP
+.B -h
+create the archive directly in the destination directory instead of going via /tmp. This can be useful on systems where /tmp is not available to the user
+.TP
 .B -p
 generate a list of installed packages/ports in ${HOME} (root only)
 .TP
 .B -s
 copy the backup via secure shell to SCP_DESTINATION
+.TP
+.B -u
+print usage and exit
 .TP
 .B -v
 be more verbose
