@@ -1,10 +1,10 @@
 ." Manpage for backupuser
 .".RI [ underlined ]
-.TH backupuser 1 "October 2017" "backupuser 1.0" "Manpage for backupuser"
+.TH backupuser 1 "October 2017" "backupuser 1.1" "Manpage for backupuser"
 .SH NAME
 backupuser \- User backup utility
 .SH SYNOPSIS
-.BR "backupuser " "[-h -p [-s SCP_DESTINATION] -u -v local_disks ...] || [etc] || [restart]"
+.BR "backupuser " "[-h -p [-s SCP_DESTINATION] [-d backup] -u -v local_disks ...] || [etc] || [restart]"
 .SH DESCRIPTION
 backupuser is a shell script utility, that allows a user to create backups of his home directory. These backups are placed in ${HOME}/backups. When invoking, all other non-option arguments passed to backupuser will be treated as external storage devices and the script will attempt to copy the backup to the given arguments.
 
@@ -14,20 +14,23 @@ When copying the backup to external storage, backupuser has an accompanying util
 
 .SH OPTIONS
 .TP
+.B -d BACKUP
+delete the backup BACKUP and exit. The respective entry in the report file will also be deleted.
+.TP
 .B -h
-create the archive directly in the destination directory instead of going via /tmp. This can be useful on systems where /tmp is not available to the user
+create the archive directly in the destination directory instead of going via /tmp. This can be useful on systems where /tmp is not available to the user.
 .TP
 .B -p
-generate a list of installed packages/ports in ${HOME} (root only)
+generate a list of installed packages/ports in ${HOME} (root only).
 .TP
 .B -s
-copy the backup via secure shell to SCP_DESTINATION
+copy the backup via secure shell to SCP_DESTINATION.
 .TP
 .B -u
-print usage and exit
+print usage and exit.
 .TP
 .B -v
-be more verbose
+be more verbose.
 .SH EXAMPLES
 .PP
 1. Backup ${HOME} and copy the backups to external storage devices "storage1" and "storage2" respectively:
@@ -36,7 +39,7 @@ backupuser -v /path/to/external/storage1 /path/to/external/storage2
 .PP
 2. Backup ${HOME} and copy the backup to an external server via SSH:
 .PP
-backupuser -v -s "user@server.com:/path/to/file"
+backupuser -v -s "-p 2222 user@server.com:/path/to/file"
 .PP
 3. Clean the user's backup directory ~/backups with the restart command:
 .PP

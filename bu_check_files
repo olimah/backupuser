@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2015-2017 Oliver Mahmoudi
+# Copyright (c) 2015-2018 Oliver Mahmoudi
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,11 +32,18 @@
 # Later, the generated report file can be diffed with the original report file 
 # on the users hard drive.
 
-### variables
+### Variables:
 USER=$(whoami)
 REPORT_FILE_USER=${USER}_report.txt
 REPORT_FILE_ETC=etc_report.txt
 OS_TYPE=$(uname)
+
+### Functions:
+# create_etc_report_file
+# create_user_report_file
+# get_path_to_file
+# get_filename
+# delete_backup
 
 create_etc_report_file()
 {
@@ -82,7 +89,126 @@ create_user_report_file()
 	done
 }
 
+get_path_to_file()
+{
+	local _awkvar _ptf
+
+	# Get the left part of the last "/" aka path to file.
+	_ptf=$(awk -v _awkvar=$1 'BEGIN { 
+		string = "";
+		n = split(_awkvar, a, "/");
+
+		for(i = 2; i < n; i++) 
+			string = string"/"a[i];
+
+		string = string"/";
+		print string;
+		}')
+
+	echo $_ptf
+}
+
+get_filename()
+{
+	local _awkvar _fn
+
+	# Get the right part of the last "/" aka filename.
+	_fn=$(awk -v _awkvar=$1 'BEGIN { 
+		n = split(_awkvar, a, "/");
+		print a[n];
+		}')
+
+	echo $_fn
+}
+
+delete_backup()
+{
+	local _bu _choice _file _ln _nobs _rf
+
+	# Check for the existence of the backup that we seek to delete.
+	_bu=$(realpath $1)
+	if [ ! -f $_bu ]; then
+		echo "The backup: $_bu doesn't exist."
+		exit
+	fi
+
+	# Construct the report file and see if it exists in the target directory.
+	_rf=$(get_path_to_file $_bu)${REPORT_FILE_USER}
+	if [ ! -f $_rf ]; then
+		_rf=$(get_path_to_file $_bu)${REPORT_FILE_ETC}		# Maybe it's an etc report file.
+		if [ ! -f $_rf ]; then
+			echo "The reportfile doesn't exist."
+			exit
+		fi
+	fi
+
+	# Check if the backup in our reportfile is unique. If so, get the line number.
+	_file=$(get_filename $_bu)
+	_nobs=$(cat $_rf | grep -c $_file)
+
+	if [ $_nobs -eq 0 ]; then
+		echo "No entry for: $_file in the reportfile."
+		exit
+	elif [ $_nobs -eq 1 ]; then
+		_ln=$(cat $_rf | grep -n $_file)
+	else
+		echo "Entry for: $_file in reportfile not unique."
+		exit
+	fi
+
+	# Make sure and delete the backup. Otherwise abort.
+	echo "This will delete your backup: $_bu"
+	echo -n "Are you sure? [yes or no]: "
+	read -t 30 _choice		# We got 30 seconds to make a choice
+
+	case $_choice in
+	[Yy][Ee][Ss] | [Yy] )
+		sed -i ${_ln:0:1}d $_rf
+		rm -v $_bu
+		exit 0
+		;;
+	[Nn][Oo] | [Nn] )
+		echo 'Aborted!'
+		exit 1
+		;;
+	*)
+		echo "No input received. Terminating."
+		exit 1
+		;;
+	esac
+}
+
+usage()
+{
+	echo "usage: $0 bu_check_files [u] [-d backup] [etc]"
+}
+
+
 ### entry point
+
+while getopts ":ud:" opt ; do
+        case $opt in
+                u)
+                        usage
+						exit 0
+                        ;;
+                d)
+                        delete_backup $OPTARG
+                        ;;
+                \?)
+                        echo "unkown flag: -$OPTARG."
+                        usage
+                        exit 1
+                        ;;
+				:)
+						echo "The -$OPTARG flag needs an argument"
+                        usage
+						exit 1
+						;;
+        esac
+done
+
+shift $((OPTIND-1))
 
 if [ "${1}" = "etc" ] ; then
 	create_etc_report_file

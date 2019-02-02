@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2015-2017 Oliver Mahmoudi
+# Copyright (c) 2015-2018 Oliver Mahmoudi
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,9 @@
 # scp_get_args
 # scp_get_destination
 # copy_backup_scp
+# get_path_to_file
+# get_filename
+# delete_backup
 # usage
 
 # Variables:
@@ -65,7 +68,7 @@ v_flag=0			# verbose flag
 make_package_list()
 {
 	if [ "${OS_TYPE}" = "Linux" ] ; then
-		if [ -e "/bin/yum" ] ; then
+		if [ -e "/usr/bin/yum" ] ; then
 			if [ $v_flag -eq 1 ] ; then
 				echo -n "Generating the installed packages list..."
 			fi
@@ -494,13 +497,16 @@ copy_backup_scp()
 
 usage()
 {
-	echo "usage: backupuser [-hpuv] [-s remote_server] local_disk_1 local_disk_2 ..."
+	echo "usage: backupuser [-hpuv] [-d backup] [-s remote_server] \
+local_disk_1 local_disk_2 ..."
+	echo "       backupuser restart"
+	echo "       backupuser etc"
 }
 
 ############################################################
-##### entry point
+##### Point of entry
 
-while getopts ":vhups:" opt ; do
+while getopts ":vhups:d:" opt ; do
         case $opt in
                 h)
                         h_flag=1		# create archive in ${BACKUP_DIR}
@@ -518,6 +524,9 @@ while getopts ":vhups:" opt ; do
                 u)
                         usage
 						exit 0
+                        ;;
+                d)
+                        delete_backup $OPTARG
                         ;;
                 \?)
                         echo "unkown flag: -$OPTARG."
@@ -563,3 +572,107 @@ done
 # done
 echo 'Done!'
 exit 0
+
+
+### implement from here
+
+get_path_to_file()
+{
+	local _awkvar _ptf
+
+	# Get the left part of the last "/" aka path to file.
+	_ptf=$(awk -v _awkvar=$1 'BEGIN { 
+		string = "";
+		n = split(_awkvar, a, "/");
+
+		for(i = 2; i < n; i++) 
+			string = string"/"a[i];
+
+		string = string"/";
+		print string;
+		}')
+
+	echo $_ptf
+}
+
+get_filename()
+{
+	local _awkvar _fn
+
+	# Get the right part of the last "/" aka filename.
+	_fn=$(awk -v _awkvar=$1 'BEGIN { 
+		n = split(_awkvar, a, "/");
+		print a[n];
+		}')
+
+	echo $_fn
+}
+
+delete_backup()
+{
+	local _bu _choice _file _ln _nobs _rf
+
+	# Check for the existence of the backup that we seek to delete.
+	_bu=$(realpath $1)
+	if [ ! -f $_bu ]; then
+		echo "The backup: $_bu doesn't exist."
+		exit
+	fi
+
+	# Construct the report file and see if it exists in the target directory.
+	_rf=$(get_path_to_file $_bu)${WHO}_report.txt
+	if [ ! -f $_rf ]; then
+		_rf=$(get_path_to_file $_bu)etc_report.txt
+		if [ ! -f $_rf ]; then
+			echo "The reportfile doesn't exist."
+			exit
+		fi
+	fi
+
+	# Check if the backup in our reportfile is unique. If so, get the line number.
+	_file=$(get_filename $_bu)
+	_nobs=$(cat $_rf | grep -c $_file)
+
+	if [ $_nobs -eq 0 ]; then
+		echo "No entry for: $_file in the reportfile."
+		exit
+	elif [ $_nobs -eq 1 ]; then
+		_ln=$(cat $_rf | grep -n $_file)
+	else
+		echo "Entry for: $_file in reportfile not unique."
+		exit
+	fi
+
+	# Make sure and delete the backup. Otherwise abort.
+	echo "This will delete your backup: $_bu"
+	echo -n "Are you sure? [yes or no]: "
+	read -t 30 _choice		# We got 30 seconds to make a choice
+
+	case $_choice in
+	[Yy][Ee][Ss] | [Yy] )
+		sed -i ${_ln:0:1}d $_rf
+		rm -v $_bu
+		exit 0
+		;;
+	[Nn][Oo] | [Nn] )
+		echo 'Aborted!'
+		exit 1
+		;;
+	*)
+		echo "No input received. Terminating."
+		exit 1
+		;;
+	esac
+}
+
+if [ -e "/usr/bin/dpkg" ] ; then
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Generating the installed packages list..."
+	fi
+	dpkg -l > ~/installed_packages_list.txt
+	if [ $v_flag -eq 1 ] ; then
+		echo "done."
+	fi
+else
+	echo "Unknown Linux package manager."
+fi

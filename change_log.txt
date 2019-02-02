@@ -1,5 +1,8 @@
-# Change log for backupuser
+# Change log for backupuser/bu_check_files
 
-10.15.2018: 
-Added new flag (h_flag) to create the archive in ${BACKUP_DIR} instead of /tmp.
-Added new flag (u_flag) to invoke 'backupuser' usage.
+Version 1.0: Released on 03.24.2018
+
+Version 1.1: Released on:
+- Added new flag: h - create the archive in ${BACKUP_DIR} instead of /tmp.
+- Added new flag: u - show usage and exit.
+- Added new flag: d - delete a backup.
