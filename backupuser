@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2015-2018 Oliver Mahmoudi
+# Copyright (c) 2015-2020 Oliver Mahmoudi
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,21 +48,27 @@ YEAR=$(date +%Y)	# This year
 TIME=$(date +%H-%M-%S)
 FILENAME=${WHO}_${DATE}_${TIME}.tar.gz
 ETC_NAME=etc_${DATE}_${TIME}.tar.gz
+USER_REPORT_FILE=${WHO}_report
+ETC_REPORT_FILE=etc_report
 BACKUP_BASE=${HOME}/backups
 BACKUP_DIR=${BACKUP_BASE}/${YEAR}
 BACKUP_DIR_ETC=${BACKUP_BASE}/etc/${YEAR}
 BU_CONTENTS=		# contents of ${HOME}/.bu
 OS_TYPE=$(uname)
 SCP_DEST=
-h_flag=0			# create backup in ${HOME} flag
-p_flag=0			# create installed packages list flag
+h_flag=0			# create backup in ${HOME}
+j_flag=0			# ignore pre-backup processing
+k_flag=0			# ignore post-backup processing
+p_flag=0			# create installed packages list
+r_flag=0			# do not log backup in user_report_file
 s_flag=0			# scp flag
 v_flag=0			# verbose flag
+x_flag=0			# do not process ~/.bu/bu_excludes
 
 #
 # Save a list of the installed packages in root's home direcory if desired.
 # Different operating systems use different package managers. 
-# Currently supported are: Linux's yum and FreeBSD's pkg.
+# Currently supported are: Linux's yum, dpkg and FreeBSD's pkg.
 #
 
 make_package_list()
@@ -86,6 +92,16 @@ make_package_list()
 			if [ $v_flag -eq 1 ] ; then
 				echo "done."
 			fi
+		elif [ -e "/usr/bin/dpkg" ] ; then
+			if [ $v_flag -eq 1 ] ; then
+				echo -n "Generating the installed packages list..."
+			fi
+			dpkg -l > ~/installed_packages_list.txt
+			if [ $v_flag -eq 1 ] ; then
+				echo "done."
+			fi
+		else
+			echo "Unknown Linux package manager."
 		fi
 	elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
 		if [ $v_flag -eq 1 ] ; then
@@ -125,9 +141,12 @@ create_backup()
 		fi
 	fi
 
-	# Call the do_hook function which checks for any extra files to process in 
-	# ${HOME}/.bu
-	do_hook
+	# Invoke the do_hook function which checks for any extra files, that begin with
+	# any prefix other than the word 'post', in ${HOME}/.bu before the actual backup.
+	# The file bu_excludes, if found, will not be sourced.
+	if [ $j_flag -eq 0 ] ; then
+		do_hook "pre"
+	fi
 
 	# Move to the temporary backup directory /tmp or else ${BACKUP_DIR} if h_flag is set
 	if [ $v_flag -eq 1 -a $h_flag -eq 0 ] ; then
@@ -147,10 +166,10 @@ create_backup()
 	fi
 
 	# Create the backup
-	if [ -e "${HOME}/bu_excludes.txt" ] ; then
+	if [ -e "${HOME}/.bu/bu_excludes" -a $x_flag -eq 0 ] ; then
 		if [ $v_flag -eq 1 ] ; then
 			echo "The following files and folders will not be backed up:"
-			cat ${HOME}/bu_excludes.txt
+			cat ${HOME}/.bu/bu_excludes
 			echo
 			if [ $h_flag -eq 0 ] ; then
 				echo -n "Creating backup in /tmp..."
@@ -158,7 +177,7 @@ create_backup()
 				echo -n "Creating backup in ${BACKUP_DIR}..."
 			fi
 		fi
-		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} -X ${HOME}/bu_excludes.txt ${HOME} > /dev/null 2>&1
+		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} -X ${HOME}/.bu/bu_excludes ${HOME} > /dev/null 2>&1
 		if [ $v_flag -eq 1 ] ; then
 			echo "done."
 		fi
@@ -211,18 +230,26 @@ create_backup()
 	fi
 
 	# Checksums
-	if [ $v_flag -eq 1 ] ; then
-		echo -n "Generating checksum in ${BACKUP_DIR}/${WHO}_report.txt..."
+	if [ $r_flag -eq 0 ] ; then
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Generating checksum in ${BACKUP_DIR}/${USER_REPORT_FILE}..."
+		fi
+
+		if [ "${OS_TYPE}" = "Linux" ] ; then
+			sha256sum ${FILENAME} >> ${USER_REPORT_FILE}	# Linux uses sha256sum
+		elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+			sha256 ${FILENAME} >> ${USER_REPORT_FILE}		# FreeBSD uses sha256
+		fi
+
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+		fi
 	fi
 
-	if [ "${OS_TYPE}" = "Linux" ] ; then
-		sha256sum ${FILENAME} >> ${WHO}_report.txt	# Linux uses the sha256sum command
-	elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-		sha256 ${FILENAME} >> ${WHO}_report.txt		# FreeBSD uses sha256
-	fi
-
-	if [ $v_flag -eq 1 ] ; then
-		echo "done."
+	# Call the do_hook function which checks for and sources any file, that
+	# begins with the word 'post' to process in ${HOME}/.bu after the backup.
+	if [ $k_flag -eq 0 ] ; then
+		do_hook "post"
 	fi
 
 	# Print out a status report.
@@ -297,19 +324,21 @@ backup_etc()
 		fi
 		
 		# Checksums
-		if [ $v_flag -eq 1 ] ; then
-			echo -n "Generating checksums in ${BACKUP_DIR_ETC}/etc_report.txt..."
+		if [ $r_flag -eq 0 ] ; then
+			if [ $v_flag -eq 1 ] ; then
+				echo -n "Generating checksums in ${BACKUP_DIR_ETC}/${ETC_REPORT_FILE}..."
+			fi
+
+    	    if [ "${OS_TYPE}" = "Linux" ] ; then
+				sha256sum ${ETC_NAME} >> ${ETC_REPORT_FILE}		# Linux uses sha256sum
+	        elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+				sha256 ${ETC_NAME} >> ${ETC_REPORT_FILE}		# FreeBSD uses sha256
+	        fi
+
+	        if [ $v_flag -eq 1 ] ; then
+	                echo "done."
+	        fi
 		fi
-
-        if [ "${OS_TYPE}" = "Linux" ] ; then
-			sha256sum ${ETC_NAME} >> etc_report.txt		# Linux uses sha256sum
-        elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-			sha256 ${ETC_NAME} >> etc_report.txt		# FreeBSD uses sha256
-        fi
-
-        if [ $v_flag -eq 1 ] ; then
-                echo "done."
-        fi
 
 		# Print out a status report.
 		echo 'Backup successful!'
@@ -327,28 +356,62 @@ backup_etc()
 
 do_hook()
 {
-if [ -d ${HOME}/.bu ] ; then
-	cd $HOME/.bu
-	BU_CONTENTS=*
-	if [ -n "$BU_CONTENTS" ] ; then
-		if [ $v_flag -eq 1 ] ; then
-			echo "Sourcing files from folder $HOME/.bu:"
+	if [ ! -d ${HOME}/.bu ] ; then
+		return
+	fi
+
+	# Pre-Backup stage: Process any file, that begins with a prefix other then 'post'
+	# and is not the bu_excludes file.
+	if [ "$1" = "pre" ] ; then
+		cd $HOME/.bu
+		BU_CONTENTS=*
+		if [ -n "$BU_CONTENTS" ] ; then
+			if [ $v_flag -eq 1 ] ; then
+				echo "Sourcing pre-backup files from folder $HOME/.bu:"
+			fi
+			for i in $BU_CONTENTS
+			do
+				if [ "${i:0:4}" = "post" -o "${i}" = "bu_excludes" ] ; then
+					continue
+				fi
+				if [ $v_flag -eq 1 ] ; then
+					echo "Sourcing $HOME/.bu/$i"
+				fi
+				source ./$i
+				if [ $v_flag -eq 1 ] ; then
+					echo
+				fi
+			done
+			if [ $v_flag -eq 1 ] ; then
+				echo "Done sourcing $HOME/.bu."
+			fi
 		fi
-		for i in $BU_CONTENTS
-		do
+	# Post-Backup stage: Process any file, that begins with the prefix 'post'.
+	elif [ "$1" = "post" ] ; then
+		cd $HOME/.bu
+		BU_CONTENTS=*
+		if [ -n "$BU_CONTENTS" ] ; then
 			if [ $v_flag -eq 1 ] ; then
-				echo "Sourcing $HOME/.bu/$i"
+				echo "Sourcing post-backup files from folder $HOME/.bu:"
 			fi
-			source ./$i
+			for i in $BU_CONTENTS
+			do
+				if [ ! "${i:0:4}" = "post" ] ; then
+					continue
+				fi
+				if [ $v_flag -eq 1 ] ; then
+					echo "Sourcing $HOME/.bu/$i"
+				fi
+				source ./$i
+				if [ $v_flag -eq 1 ] ; then
+					echo
+				fi
+			done
 			if [ $v_flag -eq 1 ] ; then
-				echo
+				echo "Done sourcing $HOME/.bu."
 			fi
-		done
-		if [ $v_flag -eq 1 ] ; then
-			echo "Done sourcing $HOME/.bu."
 		fi
 	fi
-fi
 }
 
 #
@@ -492,6 +555,113 @@ copy_backup_scp()
 }
 
 #
+# Extract the path to a file: /path/to/file -> /path/to/
+#
+
+get_path_to_file()
+{
+	local _awkvar _ptf
+
+	# Get the left part of the last "/" aka path to file.
+	_ptf=$(awk -v _awkvar=$1 'BEGIN { 
+		string = "";
+		n = split(_awkvar, a, "/");
+
+		for(i = 2; i < n; i++) 
+			string = string"/"a[i];
+
+		string = string"/";
+		print string;
+		}')
+
+	echo $_ptf
+}
+
+#
+# Extract the filename out of a full path: /path/to/file -> file
+#
+
+get_filename()
+{
+	local _awkvar _fn
+
+	# Get the right part of the last "/" aka filename.
+	_fn=$(awk -v _awkvar=$1 'BEGIN { 
+		n = split(_awkvar, a, "/");
+		print a[n];
+		}')
+
+	echo $_fn
+}
+
+#
+# Delete a backup
+#
+
+delete_backup()
+{
+	local _bu _choice _file _ln _nobs _rf _rf_flag
+
+	# Check for the existence of the backup that we seek to delete.
+	_bu=$(realpath $1)
+	if [ ! -f $_bu ]; then
+		echo "The backup: $_bu doesn't exist."
+		exit
+	fi
+
+	# Construct the report file and see if it exists in the target directory.
+	# If not, continue but set _rf_flag to 1
+	_rf_flag=0
+	_rf=$(get_path_to_file $_bu)${USER_REPORT_FILE}
+	if [ ! -f $_rf ]; then
+		_rf=$(get_path_to_file $_bu)${ETC_REPORT_FILE}
+		if [ ! -f $_rf ]; then
+			echo "The reportfile doesn't exist."
+			_rf_flag=1
+		fi
+	fi
+
+	# Check if the entry in our reportfile is unique. If so, get the line number.
+	if [ $_rf_flag -eq 0 ] ; then
+		_file=$(get_filename $_bu)
+		_nobs=$(cat $_rf | grep -c $_file)
+		if [ $_nobs -eq 0 ]; then
+			echo "No entry for: $_file in reportfile."
+			_rf_flag=1
+		elif [ $_nobs -eq 1 ]; then
+			_ln=$(cat $_rf | grep -n $_file)
+		else
+			# Not probable but still...
+			echo "Entry for: $_file in reportfile not unique."
+			_rf_flag=1
+		fi
+	fi
+
+	# Make sure and delete the backup. Otherwise abort.
+	echo "This will delete your backup: $_bu"
+	echo "Are you sure? [yes or no]: "
+	read -t 30 _choice		# We got 30 seconds to make a choice
+
+	case $_choice in
+	[Yy][Ee][Ss] | [Yy] )
+		if [ $_rf_flag -eq 0 ] ; then
+			sed -i ${_ln%:*}d $_rf
+		fi
+		rm $_bu
+		exit 0
+		;;
+	[Nn][Oo] | [Nn] )
+		echo 'Aborted!'
+		exit 1
+		;;
+	*)
+		echo "Terminating."
+		exit 1
+		;;
+	esac
+}
+
+#
 # usage function
 #
 
@@ -506,16 +676,29 @@ local_disk_1 local_disk_2 ..."
 ############################################################
 ##### Point of entry
 
-while getopts ":vhups:d:" opt ; do
+while getopts ":vhijkuprs:d:x" opt ; do
         case $opt in
                 h)
                         h_flag=1		# create archive in ${BACKUP_DIR}
+                        ;;
+                i)
+                        j_flag=1		# no pre-backup processing in do_hook
+						k_flag=1		# no post-backup processing in do_hook
+                        ;;
+                j)
+                        j_flag=1		# no pre-backup processing in do_hook
+                        ;;
+                k)
+                        k_flag=1		# no post-backup processing in do_hook
                         ;;
                 v)
                         v_flag=1		# be more verbose
                         ;;
                 p)
                         p_flag=1		# create installed packages list flag
+                        ;;
+                r)
+                        r_flag=1		# do not log the backup in report_file
                         ;;
                 s)
                         s_flag=1		# scp flag
@@ -527,6 +710,9 @@ while getopts ":vhups:d:" opt ; do
                         ;;
                 d)
                         delete_backup $OPTARG
+                        ;;
+                x)
+						x_flag=1		# do not process ~/.bu/bu_excludes
                         ;;
                 \?)
                         echo "unkown flag: -$OPTARG."
@@ -569,110 +755,5 @@ do
 	copy_backup_local $i
 done
 
-# done
 echo 'Done!'
 exit 0
-
-
-### implement from here
-
-get_path_to_file()
-{
-	local _awkvar _ptf
-
-	# Get the left part of the last "/" aka path to file.
-	_ptf=$(awk -v _awkvar=$1 'BEGIN { 
-		string = "";
-		n = split(_awkvar, a, "/");
-
-		for(i = 2; i < n; i++) 
-			string = string"/"a[i];
-
-		string = string"/";
-		print string;
-		}')
-
-	echo $_ptf
-}
-
-get_filename()
-{
-	local _awkvar _fn
-
-	# Get the right part of the last "/" aka filename.
-	_fn=$(awk -v _awkvar=$1 'BEGIN { 
-		n = split(_awkvar, a, "/");
-		print a[n];
-		}')
-
-	echo $_fn
-}
-
-delete_backup()
-{
-	local _bu _choice _file _ln _nobs _rf
-
-	# Check for the existence of the backup that we seek to delete.
-	_bu=$(realpath $1)
-	if [ ! -f $_bu ]; then
-		echo "The backup: $_bu doesn't exist."
-		exit
-	fi
-
-	# Construct the report file and see if it exists in the target directory.
-	_rf=$(get_path_to_file $_bu)${WHO}_report.txt
-	if [ ! -f $_rf ]; then
-		_rf=$(get_path_to_file $_bu)etc_report.txt
-		if [ ! -f $_rf ]; then
-			echo "The reportfile doesn't exist."
-			exit
-		fi
-	fi
-
-	# Check if the backup in our reportfile is unique. If so, get the line number.
-	_file=$(get_filename $_bu)
-	_nobs=$(cat $_rf | grep -c $_file)
-
-	if [ $_nobs -eq 0 ]; then
-		echo "No entry for: $_file in the reportfile."
-		exit
-	elif [ $_nobs -eq 1 ]; then
-		_ln=$(cat $_rf | grep -n $_file)
-	else
-		echo "Entry for: $_file in reportfile not unique."
-		exit
-	fi
-
-	# Make sure and delete the backup. Otherwise abort.
-	echo "This will delete your backup: $_bu"
-	echo -n "Are you sure? [yes or no]: "
-	read -t 30 _choice		# We got 30 seconds to make a choice
-
-	case $_choice in
-	[Yy][Ee][Ss] | [Yy] )
-		sed -i ${_ln:0:1}d $_rf
-		rm -v $_bu
-		exit 0
-		;;
-	[Nn][Oo] | [Nn] )
-		echo 'Aborted!'
-		exit 1
-		;;
-	*)
-		echo "No input received. Terminating."
-		exit 1
-		;;
-	esac
-}
-
-if [ -e "/usr/bin/dpkg" ] ; then
-	if [ $v_flag -eq 1 ] ; then
-		echo -n "Generating the installed packages list..."
-	fi
-	dpkg -l > ~/installed_packages_list.txt
-	if [ $v_flag -eq 1 ] ; then
-		echo "done."
-	fi
-else
-	echo "Unknown Linux package manager."
-fi

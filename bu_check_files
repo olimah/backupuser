@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2015-2018 Oliver Mahmoudi
+# Copyright (c) 2015-2020 Oliver Mahmoudi
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -32,40 +32,18 @@
 # Later, the generated report file can be diffed with the original report file 
 # on the users hard drive.
 
-### Variables:
-USER=$(whoami)
-REPORT_FILE_USER=${USER}_report.txt
-REPORT_FILE_ETC=etc_report.txt
+# Variables:
+WHO=$(whoami)
+USER_REPORT_FILE=${WHO}_report
+ETC_REPORT_FILE=etc_report
 OS_TYPE=$(uname)
 
-### Functions:
-# create_etc_report_file
+# Functions:
 # create_user_report_file
+# create_etc_report_file
 # get_path_to_file
 # get_filename
 # delete_backup
-
-create_etc_report_file()
-{
-	local _etc_contents
-
-	_etc_contents=etc*.tar.gz
-
-	: > ${REPORT_FILE_ETC}								# create a fresh report file
-
-	for i in ${_etc_contents} ; do
-		gzip --test ${i} > /dev/null 2>&1
-		if [ $? -eq 0 ] ; then							# Checksums
-			if [ "${OS_TYPE}" = "Linux" ] ; then
-				sha256sum ${i} >> ${REPORT_FILE_ETC}	# Linux uses the sha256sum command
-			elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-				sha256 ${i} >> ${REPORT_FILE_ETC}		# FreeBSD uses sha256
-			fi
-		else
-			echo "File: ${i} is corrupted." >> ${REPORT_FILE_ETC}
-		fi
-	done
-}
 
 create_user_report_file()
 {
@@ -73,18 +51,40 @@ create_user_report_file()
 	
 	_contents=*.tar.gz
 
-	: > ${REPORT_FILE_USER}								# create a fresh report file
+	: > ${USER_REPORT_FILE}								# create a fresh report file
 
 	for i in ${_contents} ; do
 		gzip --test ${i} > /dev/null 2>&1
 		if [ $? -eq 0 ] ; then							# Checksums
 			if [ "${OS_TYPE}" = "Linux" ] ; then
-				sha256sum ${i} >> ${REPORT_FILE_USER}	# Linux uses the sha256sum command
+				sha256sum ${i} >> ${USER_REPORT_FILE}	# Linux uses the sha256sum command
 			elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-				sha256 ${i} >> ${REPORT_FILE_USER}		# FreeBSD uses sha256
+				sha256 ${i} >> ${USER_REPORT_FILE}		# FreeBSD uses sha256
 			fi
 		else
-			echo "File: ${i} is corrupted." >> ${REPORT_FILE_USER}
+			echo "File: ${i} is corrupted." >> ${USER_REPORT_FILE}
+		fi
+	done
+}
+
+create_etc_report_file()
+{
+	local _etc_contents
+
+	_etc_contents=etc*.tar.gz
+
+	: > ${ETC_REPORT_FILE}								# create a fresh report file
+
+	for i in ${_etc_contents} ; do
+		gzip --test ${i} > /dev/null 2>&1
+		if [ $? -eq 0 ] ; then							# Checksums
+			if [ "${OS_TYPE}" = "Linux" ] ; then
+				sha256sum ${i} >> ${ETC_REPORT_FILE}	# Linux uses the sha256sum command
+			elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+				sha256 ${i} >> ${ETC_REPORT_FILE}		# FreeBSD uses sha256
+			fi
+		else
+			echo "File: ${i} is corrupted." >> ${ETC_REPORT_FILE}
 		fi
 	done
 }
@@ -123,7 +123,7 @@ get_filename()
 
 delete_backup()
 {
-	local _bu _choice _file _ln _nobs _rf
+	local _bu _choice _file _ln _nobs _rf _rf_flag
 
 	# Check for the existence of the backup that we seek to delete.
 	_bu=$(realpath $1)
@@ -133,38 +133,44 @@ delete_backup()
 	fi
 
 	# Construct the report file and see if it exists in the target directory.
-	_rf=$(get_path_to_file $_bu)${REPORT_FILE_USER}
+	# If not, continue but set _rf_flag to 1
+	_rf_flag=0
+	_rf=$(get_path_to_file $_bu)${USER_REPORT_FILE}
 	if [ ! -f $_rf ]; then
-		_rf=$(get_path_to_file $_bu)${REPORT_FILE_ETC}		# Maybe it's an etc report file.
+		_rf=$(get_path_to_file $_bu)${ETC_REPORT_FILE}
 		if [ ! -f $_rf ]; then
 			echo "The reportfile doesn't exist."
-			exit
+			_rf_flag=1
 		fi
 	fi
 
-	# Check if the backup in our reportfile is unique. If so, get the line number.
-	_file=$(get_filename $_bu)
-	_nobs=$(cat $_rf | grep -c $_file)
-
-	if [ $_nobs -eq 0 ]; then
-		echo "No entry for: $_file in the reportfile."
-		exit
-	elif [ $_nobs -eq 1 ]; then
-		_ln=$(cat $_rf | grep -n $_file)
-	else
-		echo "Entry for: $_file in reportfile not unique."
-		exit
+	# Check if the entry in our reportfile is unique. If so, get the line number.
+	if [ $_rf_flag -eq 0 ] ; then
+		_file=$(get_filename $_bu)
+		_nobs=$(cat $_rf | grep -c $_file)
+		if [ $_nobs -eq 0 ]; then
+			echo "No entry for: $_file in reportfile."
+			_rf_flag=1
+		elif [ $_nobs -eq 1 ]; then
+			_ln=$(cat $_rf | grep -n $_file)
+		else
+			# Not probable but still...
+			echo "Entry for: $_file in reportfile not unique."
+			_rf_flag=1
+		fi
 	fi
 
 	# Make sure and delete the backup. Otherwise abort.
 	echo "This will delete your backup: $_bu"
-	echo -n "Are you sure? [yes or no]: "
+	echo "Are you sure? [yes or no]: "
 	read -t 30 _choice		# We got 30 seconds to make a choice
 
 	case $_choice in
 	[Yy][Ee][Ss] | [Yy] )
-		sed -i ${_ln:0:1}d $_rf
-		rm -v $_bu
+		if [ $_rf_flag -eq 0 ] ; then
+			sed -i ${_ln%:*}d $_rf
+		fi
+		rm $_bu
 		exit 0
 		;;
 	[Nn][Oo] | [Nn] )
@@ -172,7 +178,7 @@ delete_backup()
 		exit 1
 		;;
 	*)
-		echo "No input received. Terminating."
+		echo "Terminating."
 		exit 1
 		;;
 	esac
@@ -182,7 +188,6 @@ usage()
 {
 	echo "usage: $0 bu_check_files [u] [-d backup] [etc]"
 }
-
 
 ### entry point
 
@@ -212,11 +217,11 @@ shift $((OPTIND-1))
 
 if [ "${1}" = "etc" ] ; then
 	create_etc_report_file
-	echo "Done"'!'
+	echo 'Done!'
 	exit 0
 fi
 
 create_user_report_file
-echo "Done"'!'
+echo 'Done!'
 
 exit 0
