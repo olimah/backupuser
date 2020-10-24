@@ -31,7 +31,7 @@
 # create_backup
 # backup_etc
 # do_hook
-# restart
+# make_clean
 # strip_trailing_slash
 # scp_get_args
 # scp_get_destination
@@ -54,7 +54,6 @@ BACKUP_BASE=${HOME}/backups
 BACKUP_DIR=${BACKUP_BASE}/${YEAR}
 BACKUP_DIR_ETC=${BACKUP_BASE}/etc/${YEAR}
 BU_CONTENTS=		# contents of ${HOME}/.bu
-OS_TYPE=$(uname)
 SCP_DEST=
 h_flag=0			# create backup in ${HOME}
 j_flag=0			# ignore pre-backup processing
@@ -73,41 +72,29 @@ x_flag=0			# do not process ~/.bu/bu_excludes
 
 make_package_list()
 {
-	if [ "${OS_TYPE}" = "Linux" ] ; then
-		if [ -e "/usr/bin/yum" ] ; then
-			if [ $v_flag -eq 1 ] ; then
-				echo -n "Generating the installed packages list..."
-			fi
-			yum list installed > ~/yum_list_installed.txt
-			if [ $v_flag -eq 1 ] ; then
-				echo "done."
-				echo -n "Generating the installed groups list..."
-			fi
-			yum grouplist > ~/yum_grouplist.txt
-			if [ $v_flag -eq 1 ] ; then
-				echo "done."
-				echo -n "Generating the installed repos list..."
-			fi
-			yum repolist all > ~/yum_repolist_all.txt
-			if [ $v_flag -eq 1 ] ; then
-				echo "done."
-			fi
-		elif [ -e "/usr/bin/dpkg" ] ; then
-			if [ $v_flag -eq 1 ] ; then
-				echo -n "Generating the installed packages list..."
-			fi
-			dpkg -l > ~/installed_packages_list.txt
-			if [ $v_flag -eq 1 ] ; then
-				echo "done."
-			fi
-		else
-			echo "Unknown Linux package manager."
-		fi
-	elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
+	if [ -e "/usr/bin/yum" ] ; then
 		if [ $v_flag -eq 1 ] ; then
 			echo -n "Generating the installed packages list..."
 		fi
-		pkg list > ~/installed_packages.txt
+		yum list installed > ~/yum_list_installed.txt
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+			echo -n "Generating the installed groups list..."
+		fi
+		yum grouplist > ~/yum_grouplist.txt
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+			echo -n "Generating the installed repos list..."
+		fi
+		yum repolist all > ~/yum_repolist_all.txt
+		if [ $v_flag -eq 1 ] ; then
+			echo "done."
+		fi
+	elif [ -e "/usr/bin/dpkg" ] ; then
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Generating the installed packages list..."
+		fi
+		dpkg -l > ~/installed_packages_list.txt
 		if [ $v_flag -eq 1 ] ; then
 			echo "done."
 		fi
@@ -234,13 +221,7 @@ create_backup()
 		if [ $v_flag -eq 1 ] ; then
 			echo -n "Generating checksum in ${BACKUP_DIR}/${USER_REPORT_FILE}..."
 		fi
-
-		if [ "${OS_TYPE}" = "Linux" ] ; then
-			sha256sum ${FILENAME} >> ${USER_REPORT_FILE}	# Linux uses sha256sum
-		elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-			sha256 ${FILENAME} >> ${USER_REPORT_FILE}		# FreeBSD uses sha256
-		fi
-
+		sha256sum ${FILENAME} >> ${USER_REPORT_FILE}	# Linux uses sha256sum
 		if [ $v_flag -eq 1 ] ; then
 			echo "done."
 		fi
@@ -328,13 +309,7 @@ backup_etc()
 			if [ $v_flag -eq 1 ] ; then
 				echo -n "Generating checksums in ${BACKUP_DIR_ETC}/${ETC_REPORT_FILE}..."
 			fi
-
-    	    if [ "${OS_TYPE}" = "Linux" ] ; then
-				sha256sum ${ETC_NAME} >> ${ETC_REPORT_FILE}		# Linux uses sha256sum
-	        elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-				sha256 ${ETC_NAME} >> ${ETC_REPORT_FILE}		# FreeBSD uses sha256
-	        fi
-
+			sha256sum ${ETC_NAME} >> ${ETC_REPORT_FILE}
 	        if [ $v_flag -eq 1 ] ; then
 	                echo "done."
 	        fi
@@ -418,7 +393,7 @@ do_hook()
 # Clean the users backup directory.
 #
 
-restart()
+make_clean()
 {
 	local choice
 
@@ -437,7 +412,7 @@ restart()
 		exit 1
 		;;
 	*)
-		echo "No input received. Terminating."
+		echo "Terminating."
 		exit 1
 		;;
 	esac
@@ -667,17 +642,20 @@ delete_backup()
 
 usage()
 {
-	echo "usage: backupuser [-hpuv] [-d backup] [-s remote_server] \
-local_disk_1 local_disk_2 ..."
-	echo "       backupuser restart"
-	echo "       backupuser etc"
+	echo "usage:"
+	echo "backupuser [-hijkpruvx [-d backup] [-s remote_server] local_disks]"
+	echo "backupuser [-rv [-s remote_server]] etc [local_disks]"
+	echo "backupuser clean"
 }
 
 ############################################################
 ##### Point of entry
 
-while getopts ":vhijkuprs:d:x" opt ; do
+while getopts ":d:hijkprs:uvx" opt ; do
         case $opt in
+                d)
+                        delete_backup $OPTARG
+                        ;;
                 h)
                         h_flag=1		# create archive in ${BACKUP_DIR}
                         ;;
@@ -690,9 +668,6 @@ while getopts ":vhijkuprs:d:x" opt ; do
                         ;;
                 k)
                         k_flag=1		# no post-backup processing in do_hook
-                        ;;
-                v)
-                        v_flag=1		# be more verbose
                         ;;
                 p)
                         p_flag=1		# create installed packages list flag
@@ -708,8 +683,8 @@ while getopts ":vhijkuprs:d:x" opt ; do
                         usage
 						exit 0
                         ;;
-                d)
-                        delete_backup $OPTARG
+                v)
+                        v_flag=1		# be more verbose
                         ;;
                 x)
 						x_flag=1		# do not process ~/.bu/bu_excludes
@@ -729,25 +704,21 @@ done
 
 shift $((OPTIND-1))
 
-if [ "$1" = "restart" ] ; then
-	restart
+if [ "$1" = "clean" ] ; then
+	make_clean
 	echo 'Done!'
 	exit 0
-fi
-
-if [ "$1" = "etc" ] ; then
+elif [ "$1" = "etc" ] ; then
 	backup_etc
 	if [ $s_flag -eq 1 ] ; then
 		copy_backup_scp "$SCP_DEST" ${BACKUP_DIR_ETC}/${ETC_NAME}
 	fi
-	echo 'Done!'
-	exit 0
-fi
-
-create_backup
-
-if [ $s_flag -eq 1 ] ; then
-	copy_backup_scp "$SCP_DEST" ${BACKUP_DIR}/${FILENAME}
+	shift
+else
+	create_backup
+	if [ $s_flag -eq 1 ] ; then
+		copy_backup_scp "$SCP_DEST" ${BACKUP_DIR}/${FILENAME}
+	fi
 fi
 
 for i in $*
