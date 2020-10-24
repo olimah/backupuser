@@ -1,25 +1,26 @@
 ." Manpage for bu_check_files
 .".RI [ underlined ]
-.TH bu_check_files 1 "October 2017" "bu_check_files 1.0" "Manpage for bu_check_files"
+.TH bu_check_files 1 "October 2020" "bu_check_files 1.1" "Manpage for bu_check_files"
 .SH NAME
 bu_check_files \- Verify the file integrity of backupuser(1) backups
 .SH SYNOPSIS
-.BR "bu_check_files " "[etc]"
+.BR "bu_check_files " "[-u [-d BACKUP]]"
+.br
+.BR "bu_check_files " "etc"
+.br
 .SH DESCRIPTION
-The bu_check_files utility is used to verfify the integrity of backups created with \fBbackupuser(1)\fR. The script is meant to be copied the location of the backups on the external storage device. When run, it will generate the report file ${USER}_report.txt, which can be used to verify the integrity of the backups with the \fBdiff(1)\fR utility on the original medium of creation.
+The bu_check_files utility is used to verify the integrity of backups created with \fBbackupuser(1)\fR. The script is meant to be copied to the location of the backups on the external storage device. When run, it will generate the reportfile ${USER}_report, which can then be compared with the reportfile on the original medium of creation.
 
-Upon invocation, when passing "etc" as an argument, then bu_check_files generates a report file for backups made of the /etc directory.
+If upon invocation, "etc" is passed as an argument, then bu_check_files generates a reportfile for backups made of the /etc directory.
 .SH EXAMPLES
 .PP
-Verfiy the intergrity of our 2017 backups:
+Verify the integrity of our 2017 backups:
 .PP
 cp /usr/local/bin/bu_check_files /path/to/external/storage
 .br
-cd /path/to/external/storage
-.br
 /path/to/external/storage/bu_check_files
 .br
-diff /path/to/external/storage/user_report.txt ~/backups/2017/user_report.txt
+diff /path/to/external/storage/user_report ~/backups/2017/user_report
 .SH BUGS
 Please report when found.
 .SH SEE ALSO
