@@ -36,55 +36,39 @@
 WHO=$(whoami)
 USER_REPORT_FILE=${WHO}_report
 ETC_REPORT_FILE=etc_report
-OS_TYPE=$(uname)
 
 # Functions:
-# create_user_report_file
-# create_etc_report_file
+# create_report_file
 # get_path_to_file
 # get_filename
 # delete_backup
 
-create_user_report_file()
+create_report_file()
 {
 	local _contents
 	
-	_contents=*.tar.gz
-
-	: > ${USER_REPORT_FILE}								# create a fresh report file
+	if [ "$1" = "etc"] ; then
+		_contents=etc*.tar.gz
+		: > ${ETC_REPORT_FILE}
+	else
+		_contents=*.tar.gz
+		: > ${USER_REPORT_FILE}
+	fi
 
 	for i in ${_contents} ; do
 		gzip --test ${i} > /dev/null 2>&1
-		if [ $? -eq 0 ] ; then							# Checksums
-			if [ "${OS_TYPE}" = "Linux" ] ; then
-				sha256sum ${i} >> ${USER_REPORT_FILE}	# Linux uses the sha256sum command
-			elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-				sha256 ${i} >> ${USER_REPORT_FILE}		# FreeBSD uses sha256
+		if [ $? -eq 0 ] ; then
+			if [ "$1" = "etc"] ; then
+				sha256sum ${i} >> ${ETC_REPORT_FILE}
+			else
+				sha256sum ${i} >> ${USER_REPORT_FILE}
 			fi
 		else
-			echo "File: ${i} is corrupted." >> ${USER_REPORT_FILE}
-		fi
-	done
-}
-
-create_etc_report_file()
-{
-	local _etc_contents
-
-	_etc_contents=etc*.tar.gz
-
-	: > ${ETC_REPORT_FILE}								# create a fresh report file
-
-	for i in ${_etc_contents} ; do
-		gzip --test ${i} > /dev/null 2>&1
-		if [ $? -eq 0 ] ; then							# Checksums
-			if [ "${OS_TYPE}" = "Linux" ] ; then
-				sha256sum ${i} >> ${ETC_REPORT_FILE}	# Linux uses the sha256sum command
-			elif [ "${OS_TYPE}" = "FreeBSD" ] ; then
-				sha256 ${i} >> ${ETC_REPORT_FILE}		# FreeBSD uses sha256
+			if [ "$1" = "etc"] ; then
+				echo "File: ${i} is corrupted." >> ${ETC_REPORT_FILE}
+			else
+				echo "File: ${i} is corrupted." >> ${USER_REPORT_FILE}
 			fi
-		else
-			echo "File: ${i} is corrupted." >> ${ETC_REPORT_FILE}
 		fi
 	done
 }
@@ -186,19 +170,21 @@ delete_backup()
 
 usage()
 {
-	echo "usage: $0 bu_check_files [u] [-d backup] [etc]"
+	echo "usage:" 
+	echo "bu_check_files [-u [-d backup]]"
+	echo "bu_check_files etc"
 }
 
 ### entry point
 
-while getopts ":ud:" opt ; do
+while getopts ":d:u" opt ; do
         case $opt in
+                d)
+                        delete_backup $OPTARG
+                        ;;
                 u)
                         usage
 						exit 0
-                        ;;
-                d)
-                        delete_backup $OPTARG
                         ;;
                 \?)
                         echo "unkown flag: -$OPTARG."
@@ -216,12 +202,10 @@ done
 shift $((OPTIND-1))
 
 if [ "${1}" = "etc" ] ; then
-	create_etc_report_file
-	echo 'Done!'
-	exit 0
+	create_report_file "etc"
+else
+	create_report_file
 fi
 
-create_user_report_file
 echo 'Done!'
-
 exit 0
