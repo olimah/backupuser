@@ -2,14 +2,23 @@
 
 Version 1.0: Released on 03.24.2018
 
-Version 1.1: Released on:
+Version 1.1: Released on 10.25.2020
+Changes for backupuser:
+- Moved file ~/bu_excludes.txt to ~/.bu/bu_excludes
+- Added support for pre/post backup stages via a modified do_hook function
+- Renamed the "restart" command to "clean"
+- Added new flag: d - delete a backup
 - Added new flag: h - create the archive in ${BACKUP_DIR} instead of /tmp
 - Added new flag: i - do not process pre- and post-backup stages
 - Added new flag: j - do not process pre-backup stage
 - Added new flag: k - do not process post-backup stage
-- Added new flag: u - show usage and exit
-- Added new flag: d - delete a backup
+- Added new flag: u - show usage information and exit
 - Added new flag: r - do not log an entry in reportfile
 - Added new flag: x - do not process the file ~/.bu/bu_excludes if it exists
-- Added support for pre/post backup stages via a modified do_hook function
-- Moved file ~/bu_excludes.txt to ~/.bu/bu_excludes
+- Dropped out of the box support for FreeBSD
+- Cleaned up some code
+
+Changes for bu_check_files:
+- Added new flag: d - delete a backup
+- Added new flag: u - show usage information and exit 
+- Cleaned up some code
