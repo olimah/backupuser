@@ -1,6 +1,6 @@
 README file for backupuser:
 
-backupuser is a shell script, that is mainly used to create a backups of a user's home directory. The backups themselves are stored in subfolders of ~/backups ordered by year.
+backupuser is a shell script, that is mainly used to create backups of a user's home directory. The backups themselves are stored in subfolders of ~/backups ordered by year.
 
 As part of the backup process, the backupfile can be copied to locally attached external storage devices such as USB drives and/or copied to another server via scp.
 
