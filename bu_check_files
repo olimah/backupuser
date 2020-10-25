@@ -47,7 +47,7 @@ create_report_file()
 {
 	local _contents
 	
-	if [ "$1" = "etc"] ; then
+	if [ "$1" = "etc" ] ; then
 		_contents=etc*.tar.gz
 		: > ${ETC_REPORT_FILE}
 	else
@@ -58,13 +58,13 @@ create_report_file()
 	for i in ${_contents} ; do
 		gzip --test ${i} > /dev/null 2>&1
 		if [ $? -eq 0 ] ; then
-			if [ "$1" = "etc"] ; then
+			if [ "$1" = "etc" ] ; then
 				sha256sum ${i} >> ${ETC_REPORT_FILE}
 			else
 				sha256sum ${i} >> ${USER_REPORT_FILE}
 			fi
 		else
-			if [ "$1" = "etc"] ; then
+			if [ "$1" = "etc" ] ; then
 				echo "File: ${i} is corrupted." >> ${ETC_REPORT_FILE}
 			else
 				echo "File: ${i} is corrupted." >> ${USER_REPORT_FILE}
@@ -171,7 +171,7 @@ delete_backup()
 usage()
 {
 	echo "usage:" 
-	echo "bu_check_files [-u [-d backup]]"
+	echo "bu_check_files [-u] [-d backup]"
 	echo "bu_check_files etc"
 }
 
@@ -201,7 +201,7 @@ done
 
 shift $((OPTIND-1))
 
-if [ "${1}" = "etc" ] ; then
+if [ "$1" = "etc" ] ; then
 	create_report_file "etc"
 else
 	create_report_file
