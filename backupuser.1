@@ -4,15 +4,15 @@
 .SH NAME
 backupuser \- User backup utility
 .SH SYNOPSIS
-.BR "backupuser " "[-hijkpruvx [-d BACKUP] [-s SCP_DESTINATION] local_disks]"
+.BR "backupuser " "[-hijkpruvx] [-d BACKUP] [-s SCP_DESTINATION] [local_disks]"
 .br
-.BR "backupuser " "[-v [-s SCP_DESTINATION]] etc [local_disks]"
+.BR "backupuser " "[-v] [-s SCP_DESTINATION] etc [local_disks]"
 .br
 .BR "backupuser " "clean"
 .SH DESCRIPTION
 backupuser is a shell script utility, that allows a user to create backups of his home directory. These backups are placed in subdirectories of ${HOME}/backups ordered by year. All other non-option arguments, that are passed to backupuser upon invocation, will be treated as external storage devices and the utility will attempt to copy the backup to the given arguments.
 
-Any scripts, that may reside in the folder ${HOME}/.bu, will be processed in pre- and post-backup stages when being prefixed with the words 'pre' and 'post' respectively. If the special file ${HOME}/.bu/bu_excludes exists, then any files and folders mentioned in this file will not be backed up. To be excluded, files and folders should be specified with their full path to file. In case the argument "clean" is passed to the utility upon invocation, then backupuser will clean the user's backup directory ${HOME}/backups. The following special options exist for root: Passing "etc" as an argument, causes the utility to generate a backup of the system's /etc directory.
+Any scripts, that may reside in the folder ${HOME}/.bu, will be processed in pre- and post-backup stages when being prefixed with the words 'pre' and 'post' respectively. If the special file ${HOME}/.bu/bu_excludes exists, then any files and folders mentioned in this file will not be backed up. To be excluded, files and folders should be specified with their full path to file. In case the argument "clean" is passed to the utility upon invocation, then backupuser will clean the user's backup directory ${HOME}/backups. The following special options exist for root: Passing "etc" as a command, causes the utility to generate a backup of the system's /etc directory.
 
 When copying the backup to external storage, backupuser's accompanying utility, \fBbu_check_files(1)\fR, can be used to generate a fresh reportfile on that drive in order to subsequently verify the integrity of the backups with the \fBdiff(1)\fR utility.
 
