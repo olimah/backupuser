@@ -74,29 +74,30 @@ make_package_list()
 {
 	if [ -e "/usr/bin/yum" ] ; then
 		if [ $v_flag -eq 1 ] ; then
-			echo -n "Generating the installed packages list..."
+			echo -n "Generating installed packages list..."
 		fi
-		yum list installed > ~/yum_list_installed.txt
+		yum list installed > ~/yum_list_installed
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
-			echo -n "Generating the installed groups list..."
+			echo " done."
+			echo -n "Generating installed groups list..."
 		fi
-		yum grouplist > ~/yum_grouplist.txt
+		yum grouplist > ~/yum_grouplist
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
-			echo -n "Generating the installed repos list..."
+			echo " done."
+			echo -n "Generating installed repos list..."
 		fi
-		yum repolist all > ~/yum_repolist_all.txt
+		yum repolist all > ~/yum_repolist_all
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
+			echo " done."
+			echo
 		fi
 	elif [ -e "/usr/bin/dpkg" ] ; then
 		if [ $v_flag -eq 1 ] ; then
-			echo -n "Generating the installed packages list..."
+			echo -n "Generating installed packages list..."
 		fi
-		dpkg -l > ~/installed_packages_list.txt
+		dpkg -l > ~/installed_packages_list
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
+			echo " done."
 		fi
 	else
 		echo "Unknown package manager."
@@ -124,7 +125,7 @@ create_backup()
 		fi
 		mkdir -p ${BACKUP_DIR}
 		if [ $v_flag -eq 1 ] ; then
-			echo done.
+			echo " done."
 		fi
 	fi
 
@@ -149,7 +150,7 @@ create_backup()
 	fi
 
 	if [ $v_flag -eq 1 ] ; then
-		echo "done."
+		echo " done."
 	fi
 
 	# Create the backup
@@ -166,7 +167,7 @@ create_backup()
 		fi
 		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} -X ${HOME}/.bu/bu_excludes ${HOME} > /dev/null 2>&1
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
+			echo " done."
 		fi
 	else
 		if [ $v_flag -eq 1 -a $h_flag -eq 0 ] ; then
@@ -176,7 +177,7 @@ create_backup()
 		fi
 		tar -czf ${FILENAME} --exclude ${BACKUP_BASE} ${HOME} > /dev/null 2>&1
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
+			echo " done."
 		fi
 	fi
 
@@ -192,7 +193,7 @@ create_backup()
 	fi
 
 	if [ $v_flag -eq 1 -a $h_flag -eq 0 ] ; then
-		echo done.
+		echo " done."
 	fi
 
 	# In case $h_flag == 1, we are already there, so therefore...
@@ -208,7 +209,7 @@ create_backup()
 
 	if [ $? -eq 0 ] ; then
 		if [ $v_flag -eq 1 ] ; then
-			echo "OK"'!'
+			echo ' OK!'
 		fi
 	else
 		echo "File: ${FILENAME} is corrupted."
@@ -223,7 +224,8 @@ create_backup()
 		fi
 		sha256sum ${FILENAME} >> ${USER_REPORT_FILE}	# Linux uses sha256sum
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
+			echo " done."
+			echo
 		fi
 	fi
 
@@ -256,7 +258,7 @@ backup_etc()
 			fi
 			mkdir -p ${BACKUP_DIR_ETC}
 			if [ $v_flag -eq 1 ] ; then
-				echo "done."
+				echo " done."
 			fi
 		fi
 
@@ -267,7 +269,7 @@ backup_etc()
 		fi
 		cd /tmp > /dev/null 2>&1
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
+			echo " done."
 		fi
 
 		if [ $v_flag -eq 1 ] ; then
@@ -275,16 +277,16 @@ backup_etc()
 		fi
 		tar -czf ${ETC_NAME} /etc > /dev/null 2>&1
 		if [ $v_flag -eq 1 ] ; then
-			echo "done."
+			echo " done."
 		fi
 
 		# Move the backup to the directory it is destined for
 		if [ $v_flag -eq 1 ] ; then
-			echo -n "Moving backup from /tmp to ${BACKUP_DIR}..."
+			echo -n "Moving backup from /tmp to ${BACKUP_DIR_ETC}..."
 		fi
 		mv ${ETC_NAME} ${BACKUP_DIR_ETC} > /dev/null 2>&1
 		if [ $v_flag -eq 1 ] ; then
-			echo done.
+			echo " done."
 		fi
 		cd ${BACKUP_DIR_ETC} > /dev/null 2>&1
 
@@ -296,7 +298,7 @@ backup_etc()
 
 		if [ $? -eq 0 ] ; then
 			if [ $v_flag -eq 1 ] ; then
-				echo 'OK!'
+				echo ' OK!'
 			fi
 		else
 			echo "File: ${ETC_NAME} is corrupted."
@@ -311,7 +313,7 @@ backup_etc()
 			fi
 			sha256sum ${ETC_NAME} >> ${ETC_REPORT_FILE}
 	        if [ $v_flag -eq 1 ] ; then
-	                echo "done."
+	                echo " done."
 	        fi
 		fi
 
@@ -353,12 +355,10 @@ do_hook()
 					echo "Sourcing $HOME/.bu/$i"
 				fi
 				source ./$i
-				if [ $v_flag -eq 1 ] ; then
-					echo
-				fi
 			done
 			if [ $v_flag -eq 1 ] ; then
 				echo "Done sourcing $HOME/.bu."
+				echo
 			fi
 		fi
 	# Post-Backup stage: Process any file, that begins with the prefix 'post'.
@@ -378,12 +378,10 @@ do_hook()
 					echo "Sourcing $HOME/.bu/$i"
 				fi
 				source ./$i
-				if [ $v_flag -eq 1 ] ; then
-					echo
-				fi
 			done
 			if [ $v_flag -eq 1 ] ; then
 				echo "Done sourcing $HOME/.bu."
+				echo
 			fi
 		fi
 	fi
@@ -459,7 +457,7 @@ copy_backup_local()
 			fi
 			cp -i ${BACKUP_DIR}/${FILENAME} $_i
 			if [ $v_flag -eq 1 ] ; then
-				echo "done."
+				echo " done."
 			fi
 		else
 			echo "$_i is not writable."
@@ -643,8 +641,8 @@ delete_backup()
 usage()
 {
 	echo "usage:"
-	echo "backupuser [-hijkpruvx [-d backup] [-s remote_server] local_disks]"
-	echo "backupuser [-rv [-s remote_server]] etc [local_disks]"
+	echo "backupuser [-hijkpruvx] [-d backup] [-s remote_server] [local_disks]"
+	echo "backupuser [-rv] [-s remote_server] etc [local_disks]"
 	echo "backupuser clean"
 }
 
