@@ -12,6 +12,15 @@ bu_check_files \- Verify the file integrity of backupuser(1) backups
 The bu_check_files utility is used to verify the integrity of backups created with \fBbackupuser(1)\fR. The script is meant to be copied to the location of the backups on the external storage device. When run, it will generate the reportfile ${USER}_report, which can then be compared with the reportfile on the original medium of creation.
 
 If upon invocation, "etc" is passed as an argument, then bu_check_files generates a reportfile for backups made of the /etc directory.
+
+.SH OPTIONS
+.TP
+.B -d BACKUP
+delete the backup BACKUP and exit. The respective entry in the reportfile will also be deleted if it exists.
+.TP
+.B -u
+print usage information and exit.
+
 .SH EXAMPLES
 .PP
 Verify the integrity of our 2017 backups:
