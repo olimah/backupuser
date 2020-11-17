@@ -69,8 +69,7 @@ x_flag=0			# do not process ~/.bu/bu_excludes
 # Different operating systems use different package managers. 
 # Currently supported are: Linux's yum, dpkg and FreeBSD's pkg.
 #
-
-make_package_list()
+function make_package_list()
 {
 	if [ -e "/usr/bin/yum" ] ; then
 		if [ $v_flag -eq 1 ] ; then
@@ -107,12 +106,10 @@ make_package_list()
 #
 # Backup the user's home directoy. This is the main function.
 #
-
-create_backup()
+function create_backup()
 {
 	if [ $v_flag -eq 1 ] ; then
 		echo "Getting ready to backup ${WHO}'s home directory:"
-		echo
 	fi
 
 	if [ "${WHO}" = "root" -a $p_flag -eq 1 ] ; then
@@ -222,10 +219,9 @@ create_backup()
 		if [ $v_flag -eq 1 ] ; then
 			echo -n "Generating checksum in ${BACKUP_DIR}/${USER_REPORT_FILE}..."
 		fi
-		sha256sum ${FILENAME} >> ${USER_REPORT_FILE}	# Linux uses sha256sum
+		sha256sum ${FILENAME} >> ${USER_REPORT_FILE}
 		if [ $v_flag -eq 1 ] ; then
 			echo " done."
-			echo
 		fi
 	fi
 
@@ -243,95 +239,92 @@ create_backup()
 #
 # Make a backup of the /etc directory.
 #
-
-backup_etc()
+function backup_etc()
 {
-	if [ "${WHO}" = "root" ] ; then
-		if [ $v_flag -eq 1 ] ; then
-			echo "Getting ready to backup the /etc directory:"
-			echo
-		fi
-
-		if [ ! -d ${BACKUP_DIR_ETC} ] ; then
-			if [ $v_flag -eq 1 ] ; then
-				echo -n "Backup directory: ${BACKUP_DIR_ETC} doesn't seem to exist. Creating it..."
-			fi
-			mkdir -p ${BACKUP_DIR_ETC}
-			if [ $v_flag -eq 1 ] ; then
-				echo " done."
-			fi
-		fi
-
-		# Move to the temporary backup directory /tmp. Only root can initiate a backup of
-		# /etc so /tmp is always available.
-		if [ $v_flag -eq 1 ] ; then
-			echo -n "Moving to temporary backup folder /tmp..."
-		fi
-		cd /tmp > /dev/null 2>&1
-		if [ $v_flag -eq 1 ] ; then
-			echo " done."
-		fi
-
-		if [ $v_flag -eq 1 ] ; then
-			echo -n "Creating the backup..."
-		fi
-		tar -czf ${ETC_NAME} /etc > /dev/null 2>&1
-		if [ $v_flag -eq 1 ] ; then
-			echo " done."
-		fi
-
-		# Move the backup to the directory it is destined for
-		if [ $v_flag -eq 1 ] ; then
-			echo -n "Moving backup from /tmp to ${BACKUP_DIR_ETC}..."
-		fi
-		mv ${ETC_NAME} ${BACKUP_DIR_ETC} > /dev/null 2>&1
-		if [ $v_flag -eq 1 ] ; then
-			echo " done."
-		fi
-		cd ${BACKUP_DIR_ETC} > /dev/null 2>&1
-
-		# test the backup
-		if [ $v_flag -eq 1 ] ; then
-			echo -n "Testing the backup..."
-		fi
-		gzip -t ${ETC_NAME} > /dev/null 2>&1
-
-		if [ $? -eq 0 ] ; then
-			if [ $v_flag -eq 1 ] ; then
-				echo ' OK!'
-			fi
-		else
-			echo "File: ${ETC_NAME} is corrupted."
-			rm -v ${ETC_NAME}
-			exit 1
-		fi
-		
-		# Checksums
-		if [ $r_flag -eq 0 ] ; then
-			if [ $v_flag -eq 1 ] ; then
-				echo -n "Generating checksums in ${BACKUP_DIR_ETC}/${ETC_REPORT_FILE}..."
-			fi
-			sha256sum ${ETC_NAME} >> ${ETC_REPORT_FILE}
-	        if [ $v_flag -eq 1 ] ; then
-	                echo " done."
-	        fi
-		fi
-
-		# Print out a status report.
-		echo 'Backup successful!'
-		echo "/etc backup file is: ${BACKUP_DIR_ETC}/${ETC_NAME}"
-	else
-		echo 'You are not the root user. You need to be root to backup the /etc directory!'
+	if [ "${WHO}" != "root" ] ; then
+		echo 'You need to be root to backup the /etc directory!'
 		exit 1
-	fi ### root ###
+	fi
+
+	if [ $v_flag -eq 1 ] ; then
+		echo "Getting ready to backup the /etc directory:"
+	fi
+
+	if [ ! -d ${BACKUP_DIR_ETC} ] ; then
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Backup directory: ${BACKUP_DIR_ETC} doesn't seem to exist. Creating it..."
+		fi
+		mkdir -p ${BACKUP_DIR_ETC}
+		if [ $v_flag -eq 1 ] ; then
+			echo " done."
+		fi
+	fi
+
+	# Move to the temporary backup directory /tmp. Only root can initiate a backup of
+	# /etc so /tmp is always available.
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Moving to temporary backup folder /tmp..."
+	fi
+	cd /tmp > /dev/null 2>&1
+	if [ $v_flag -eq 1 ] ; then
+		echo " done."
+	fi
+
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Creating the backup..."
+	fi
+	tar -czf ${ETC_NAME} /etc > /dev/null 2>&1
+	if [ $v_flag -eq 1 ] ; then
+		echo " done."
+	fi
+
+	# Move the backup to the directory it is destined for
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Moving backup from /tmp to ${BACKUP_DIR_ETC}..."
+	fi
+	mv ${ETC_NAME} ${BACKUP_DIR_ETC} > /dev/null 2>&1
+	if [ $v_flag -eq 1 ] ; then
+		echo " done."
+	fi
+	cd ${BACKUP_DIR_ETC} > /dev/null 2>&1
+
+	# test the backup
+	if [ $v_flag -eq 1 ] ; then
+		echo -n "Testing the backup..."
+	fi
+	gzip -t ${ETC_NAME} > /dev/null 2>&1
+
+	if [ $? -eq 0 ] ; then
+		if [ $v_flag -eq 1 ] ; then
+			echo ' OK!'
+		fi
+	else
+		echo "File: ${ETC_NAME} is corrupted."
+		rm -v ${ETC_NAME}
+		exit 1
+	fi
+		
+	# Checksums
+	if [ $r_flag -eq 0 ] ; then
+		if [ $v_flag -eq 1 ] ; then
+			echo -n "Generating checksums in ${BACKUP_DIR_ETC}/${ETC_REPORT_FILE}..."
+		fi
+		sha256sum ${ETC_NAME} >> ${ETC_REPORT_FILE}
+        if [ $v_flag -eq 1 ] ; then
+                echo " done."
+        fi
+	fi
+
+	# Print out a status report.
+	echo 'Backup successful!'
+	echo "/etc backup file is: ${BACKUP_DIR_ETC}/${ETC_NAME}"
 }
 
 #
 # The modular hook function begings here. Check whether there are any files in the
 # $HOME/.bu folder. If so, then source them.
 #
-
-do_hook()
+function do_hook()
 {
 	if [ ! -d ${HOME}/.bu ] ; then
 		return
@@ -348,6 +341,12 @@ do_hook()
 			fi
 			for i in $BU_CONTENTS
 			do
+				if [ "$i" = "*" ] ; then
+					if [ $v_flag -eq 1 ] ; then
+						echo "Done sourcing $HOME/.bu."
+					fi
+					return
+				fi
 				if [ "${i:0:4}" = "post" -o "${i}" = "bu_excludes" ] ; then
 					continue
 				fi
@@ -358,7 +357,6 @@ do_hook()
 			done
 			if [ $v_flag -eq 1 ] ; then
 				echo "Done sourcing $HOME/.bu."
-				echo
 			fi
 		fi
 	# Post-Backup stage: Process any file, that begins with the prefix 'post'.
@@ -371,6 +369,12 @@ do_hook()
 			fi
 			for i in $BU_CONTENTS
 			do
+				if [ "$i" = "*" ] ; then
+					if [ $v_flag -eq 1 ] ; then
+						echo "Done sourcing $HOME/.bu."
+					fi
+					return
+				fi
 				if [ ! "${i:0:4}" = "post" ] ; then
 					continue
 				fi
@@ -381,7 +385,6 @@ do_hook()
 			done
 			if [ $v_flag -eq 1 ] ; then
 				echo "Done sourcing $HOME/.bu."
-				echo
 			fi
 		fi
 	fi
@@ -390,8 +393,7 @@ do_hook()
 #
 # Clean the users backup directory.
 #
-
-make_clean()
+function make_clean()
 {
 	local choice
 
@@ -420,8 +422,7 @@ make_clean()
 # Strip a trailing slash from given pathnames, i.e.
 # /path/to/file/ becomes /path/to/file
 #
-
-strip_trailing_slash()
+function strip_trailing_slash()
 {
 	local _length _strlen _last_char
 
@@ -442,8 +443,7 @@ strip_trailing_slash()
 #
 # Copy the backup to another local device.
 #
-
-copy_backup_local()
+function copy_backup_local()
 {
 	local _i
 
@@ -470,8 +470,7 @@ copy_backup_local()
 #
 # Get the destination for scp. Passed via -s.
 #
-
-scp_get_destination_path()
+function scp_get_destination_path()
 {
 	local _dest
 
@@ -486,8 +485,7 @@ scp_get_destination_path()
 #
 # Get the arguments (if any) for scp. Passed via -s.
 #
-
-scp_get_arguments()
+function scp_get_arguments()
 {
 	local _args
 
@@ -506,8 +504,7 @@ scp_get_arguments()
 #
 # Copy the backup via scp
 #
-
-copy_backup_scp()
+function copy_backup_scp()
 {
 	local _scp_args _scp_path _file
 
@@ -530,8 +527,7 @@ copy_backup_scp()
 #
 # Extract the path to a file: /path/to/file -> /path/to/
 #
-
-get_path_to_file()
+function get_path_to_file()
 {
 	local _awkvar _ptf
 
@@ -553,8 +549,7 @@ get_path_to_file()
 #
 # Extract the filename out of a full path: /path/to/file -> file
 #
-
-get_filename()
+function get_filename()
 {
 	local _awkvar _fn
 
@@ -570,8 +565,7 @@ get_filename()
 #
 # Delete a backup
 #
-
-delete_backup()
+function delete_backup()
 {
 	local _bu _choice _file _ln _nobs _rf _rf_flag
 
@@ -637,8 +631,7 @@ delete_backup()
 #
 # usage function
 #
-
-usage()
+function usage()
 {
 	echo "usage:"
 	echo "backupuser [-hijkpruvx] [-d backup] [-s remote_server] [local_disks]"
