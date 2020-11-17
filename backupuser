@@ -65,7 +65,7 @@ v_flag=0			# verbose flag
 x_flag=0			# do not process ~/.bu/bu_excludes
 
 #
-# Save a list of the installed packages in root's home direcory if desired.
+# Save a list of the installed packages in root's home directory if desired.
 # Different operating systems use different package managers. 
 # Currently supported are yum and dpkg.
 #
@@ -155,7 +155,6 @@ function create_backup()
 		if [ $v_flag -eq 1 ] ; then
 			echo "The following files and folders will not be backed up:"
 			cat ${HOME}/.bu/bu_excludes
-			echo
 			if [ $h_flag -eq 0 ] ; then
 				echo -n "Creating backup in /tmp..."
 			else
