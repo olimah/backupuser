@@ -67,7 +67,7 @@ x_flag=0			# do not process ~/.bu/bu_excludes
 #
 # Save a list of the installed packages in root's home direcory if desired.
 # Different operating systems use different package managers. 
-# Currently supported are: Linux's yum, dpkg and FreeBSD's pkg.
+# Currently supported are yum and dpkg.
 #
 function make_package_list()
 {
