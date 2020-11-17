@@ -22,3 +22,7 @@ Changes for bu_check_files:
 - Added new flag: d - delete a backup
 - Added new flag: u - show usage information and exit 
 - Cleaned up some code
+
+Version 1.1.1: Released on 11.17.2020
+- Fixed a bug in the do_hook function
+- Cleaned up some code
